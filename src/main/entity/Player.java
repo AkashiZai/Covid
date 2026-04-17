@@ -2,7 +2,7 @@ package main.entity;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
+import java.io.InputStream;
 import javax.imageio.ImageIO;
 import main.GamePanel;
 import main.Key;
@@ -27,45 +27,58 @@ public class Player extends PlayerValue {
         groundY = y;
     }
 
-    public void getPlayerImage() {
+    // --- Helper Method ช่วยโหลดรูปภาพ ป้องกันเกมพังถ้ารูปหายบางรูป ---
+    private BufferedImage setupImage(String imagePath) {
         try {
-            down1  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder34.png"));
-            down2  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder35.png"));
-            up1    = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder34.png"));
-            up2    = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder35.png"));
-            left1  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder19.png"));
-            left2  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder20.png"));
-            left3  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder21.png"));
-            left4  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder22.png"));
-            left5  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder23.png"));
-            left6  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder24.png"));
-            left7  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder25.png"));
-            right1 = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder26.png"));
-            right2 = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder27.png"));
-            right3 = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder28.png"));
-            right4 = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder29.png"));
-            right5 = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder30.png"));
-            right6 = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder31.png"));
-            right7 = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder32.png"));
-            jump1  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder33.png"));
-            jump2  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder34.png"));
-            jump3  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder35.png"));
-            jump4  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder36.png"));
-            jump5  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder37.png"));
-            jump6  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder38.png"));
-            jump7  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder39.png"));
-            jump8  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder40.png"));
-            jump9  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder41.png"));
-            fall1  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder63.png"));
-            fall2  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder64.png"));
-            fall3  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder65.png"));
-            fall4  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder66.png"));
-            fall5  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder67.png"));
-            fall6  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder68.png"));
-            fall7  = ImageIO.read(getClass().getResourceAsStream("/main/res/Nurse-16x16-Base-Folder69.png"));
-        } catch (IOException e) {
-            e.printStackTrace();
+            InputStream is = getClass().getResourceAsStream(imagePath);
+            if (is != null) {
+                return ImageIO.read(is);
+            }
+        } catch (Exception e) {
+            System.err.println("หาภาพไม่เจอ หรือโหลดไม่ได้: " + imagePath);
         }
+        return null;
+    }
+
+    public void getPlayerImage() {
+        down1  = setupImage("/main/res/Nurse-16x16-Base-Folder34.png");
+        down2  = setupImage("/main/res/Nurse-16x16-Base-Folder35.png");
+        up1    = setupImage("/main/res/Nurse-16x16-Base-Folder34.png");
+        up2    = setupImage("/main/res/Nurse-16x16-Base-Folder35.png");
+
+        left1  = setupImage("/main/res/Nurse-16x16-Base-Folder19.png");
+        left2  = setupImage("/main/res/Nurse-16x16-Base-Folder20.png");
+        left3  = setupImage("/main/res/Nurse-16x16-Base-Folder21.png");
+        left4  = setupImage("/main/res/Nurse-16x16-Base-Folder22.png");
+        left5  = setupImage("/main/res/Nurse-16x16-Base-Folder23.png");
+        left6  = setupImage("/main/res/Nurse-16x16-Base-Folder24.png");
+        left7  = setupImage("/main/res/Nurse-16x16-Base-Folder25.png");
+
+        right1 = setupImage("/main/res/Nurse-16x16-Base-Folder26.png");
+        right2 = setupImage("/main/res/Nurse-16x16-Base-Folder27.png");
+        right3 = setupImage("/main/res/Nurse-16x16-Base-Folder28.png");
+        right4 = setupImage("/main/res/Nurse-16x16-Base-Folder29.png");
+        right5 = setupImage("/main/res/Nurse-16x16-Base-Folder30.png");
+        right6 = setupImage("/main/res/Nurse-16x16-Base-Folder31.png");
+        right7 = setupImage("/main/res/Nurse-16x16-Base-Folder32.png");
+
+        jump1  = setupImage("/main/res/Nurse-16x16-Base-Folder33.png");
+        jump2  = setupImage("/main/res/Nurse-16x16-Base-Folder34.png");
+        jump3  = setupImage("/main/res/Nurse-16x16-Base-Folder35.png");
+        jump4  = setupImage("/main/res/Nurse-16x16-Base-Folder36.png");
+        jump5  = setupImage("/main/res/Nurse-16x16-Base-Folder37.png");
+        jump6  = setupImage("/main/res/Nurse-16x16-Base-Folder38.png");
+        jump7  = setupImage("/main/res/Nurse-16x16-Base-Folder39.png");
+        jump8  = setupImage("/main/res/Nurse-16x16-Base-Folder40.png");
+        jump9  = setupImage("/main/res/Nurse-16x16-Base-Folder41.png");
+
+        fall1  = setupImage("/main/res/Nurse-16x16-Base-Folder63.png");
+        fall2  = setupImage("/main/res/Nurse-16x16-Base-Folder64.png");
+        fall3  = setupImage("/main/res/Nurse-16x16-Base-Folder65.png");
+        fall4  = setupImage("/main/res/Nurse-16x16-Base-Folder66.png");
+        fall5  = setupImage("/main/res/Nurse-16x16-Base-Folder67.png");
+        fall6  = setupImage("/main/res/Nurse-16x16-Base-Folder68.png");
+        fall7  = setupImage("/main/res/Nurse-16x16-Base-Folder69.png");
     }
 
     public void update() {
@@ -184,7 +197,6 @@ public class Player extends PlayerValue {
             }
         }
 
-        // โค้ดเดิมมีการใช้ตัวแปรขยะจากการ Decompile ได้ถูกคลีนทิ้งแล้ว
         if (image != null) {
             g2.drawImage(image, x, y, 64, 64, null);
         }

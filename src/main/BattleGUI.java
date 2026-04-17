@@ -106,51 +106,56 @@ public class BattleGUI {
     // ── Public API ────────────────────────────────────────────────────
     public void loadQuestions(String resourcePath) {
         questions.clear();
-        try (BufferedReader br = new BufferedReader(
-                new InputStreamReader(getClass().getResourceAsStream(resourcePath), "UTF-8"))) {
+        try {
+            InputStream is = getClass().getResourceAsStream(resourcePath);
+            if (is == null) {
+                System.err.println("[BattleGUI] ร้ายแรง: ไม่พบไฟล์คำถามที่พาธ " + resourcePath);
+                return; // ออกจากเมธอดทันทีเพื่อป้องกัน NullPointerException
+            }
 
-            String   qText   = null;
-            String[] choices = new String[3];
-            int      ci      = 0, ansIdx = 0;
-            String   expText = "";
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
+                String   qText   = null;
+                String[] choices = new String[3];
+                int      ci      = 0, ansIdx = 0;
+                String   expText = "";
 
-            for (String line; (line = br.readLine()) != null; ) {
-                line = line.trim();
-
-                if (line.equals("_") || line.isEmpty()) {
-                    if (qText != null && ci == 3) {
-                        questions.add(new Question(qText, choices.clone(), ansIdx, expText));
+                for (String line; (line = br.readLine()) != null; ) {
+                    line = line.trim();
+                    // ... (โค้ดอ่านไฟล์ข้างในคงเดิมทั้งหมด) ...
+                    if (line.equals("_") || line.isEmpty()) {
+                        if (qText != null && ci == 3) {
+                            questions.add(new Question(qText, choices.clone(), ansIdx, expText));
+                        }
+                        qText = null;
+                        choices = new String[3];
+                        ci = 0;
+                        ansIdx = 0;
+                        expText = "";
+                        continue;
                     }
-                    qText = null;
-                    choices = new String[3];
-                    ci = 0;
-                    ansIdx = 0;
-                    expText = "";
-                    continue;
-                }
 
-                if (line.startsWith("Q:")) {
-                    qText = line.substring(2).trim();
-                } else if (line.startsWith("A:") && ci == 0) {
-                    choices[ci++] = line.substring(2).trim();
-                } else if (line.startsWith("B:") && ci == 1) {
-                    choices[ci++] = line.substring(2).trim();
-                } else if (line.startsWith("C:") && ci == 2) {
-                    choices[ci++] = line.substring(2).trim();
-                } else if (line.startsWith("ANS:")) {
-                    String ans = line.substring(4).trim().toUpperCase();
-                    ansIdx = ans.equals("A") ? 0 : ans.equals("B") ? 1 : 2;
-                } else if (line.startsWith("EXP:")) {
-                    expText = line.substring(4).trim();
+                    if (line.startsWith("Q:")) {
+                        qText = line.substring(2).trim();
+                    } else if (line.startsWith("A:") && ci == 0) {
+                        choices[ci++] = line.substring(2).trim();
+                    } else if (line.startsWith("B:") && ci == 1) {
+                        choices[ci++] = line.substring(2).trim();
+                    } else if (line.startsWith("C:") && ci == 2) {
+                        choices[ci++] = line.substring(2).trim();
+                    } else if (line.startsWith("ANS:")) {
+                        String ans = line.substring(4).trim().toUpperCase();
+                        ansIdx = ans.equals("A") ? 0 : ans.equals("B") ? 1 : 2;
+                    } else if (line.startsWith("EXP:")) {
+                        expText = line.substring(4).trim();
+                    }
                 }
+                if (qText != null && ci == 3) {
+                    questions.add(new Question(qText, choices.clone(), ansIdx, expText));
+                }
+                System.out.println("[BattleGUI] โหลดคำถามสำเร็จ: " + questions.size() + " ข้อ");
             }
-            if (qText != null && ci == 3) {
-                questions.add(new Question(qText, choices.clone(), ansIdx, expText));
-            }
-
-            System.out.println("[BattleGUI] Loaded " + questions.size() + " questions.");
         } catch (Exception e) {
-            System.err.println("[BattleGUI] Failed to load questions: " + e.getMessage());
+            System.err.println("[BattleGUI] โหลดคำถามล้มเหลว: " + e.getMessage());
         }
     }
 

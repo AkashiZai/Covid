@@ -98,21 +98,31 @@ public class ScytheBoss extends PlayerValue {
             animationCounter = 0;
 
             if (state == STATE_IDLE) {
-                frameIndex++;
-                if (frameIndex >= idleImages.length) {
-                    frameIndex = 0;
+                // ป้องกัน NullPointerException
+                if (idleImages != null && idleImages.length > 0) {
+                    frameIndex++;
+                    if (frameIndex >= idleImages.length) {
+                        frameIndex = 0;
+                    }
                 }
             } else if (state == STATE_ATTACK) {
-                frameIndex++;
-                if (frameIndex >= attackImages.length) {
-                    state = STATE_IDLE;
-                    frameIndex = 0;
+                if (attackImages != null && attackImages.length > 0) {
+                    frameIndex++;
+                    if (frameIndex >= attackImages.length) {
+                        state = STATE_IDLE;
+                        frameIndex = 0;
+                    }
+                } else {
+                    state = STATE_IDLE; // Fallback หากไม่มีรูป
                 }
             } else if (state == STATE_DEATH) {
-                frameIndex++;
-                // โค้ดส่วนนี้จะทำงานถูกต้องโดยอัตโนมัติ เพราะเราเช็คความยาวของ deathImages.length
-                if (frameIndex >= deathImages.length) {
-                    frameIndex = deathImages.length - 1; // ล้มแล้วค้างที่เฟรมสุดท้าย
+                if (deathImages != null && deathImages.length > 0) {
+                    frameIndex++;
+                    if (frameIndex >= deathImages.length) {
+                        frameIndex = deathImages.length - 1;
+                        isDead = true;
+                    }
+                } else {
                     isDead = true;
                 }
             }
