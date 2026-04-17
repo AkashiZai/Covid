@@ -37,6 +37,20 @@ public class Obstacle {
     private boolean active         = false;
     private int     timer          = 0;
 
+    /**
+     * difficultyMultiplier — คูณค่าความยากของทุก pattern
+     *   ด่าน 1 = 1.0 (ค่าเดิม)
+     *   ด่าน 2 = 1.5 (ยากขึ้น 50%)
+     *   ด่าน 3 = 2.0 (ยากขึ้น 100%)
+     *
+     * ค่านี้ถูกนำไปคูณ speed ของกระสุน และลดช่วงเวลา fire interval ลง
+     */
+    private float difficultyMultiplier = 1.0f;
+
+    public void setDifficultyMultiplier(float multiplier) {
+        this.difficultyMultiplier = multiplier;
+    }
+
     private final List<Bullet> bullets = new ArrayList<>();
 
     // ── Lava ──
@@ -125,13 +139,16 @@ public class Obstacle {
     private static final int LANE_DURATION      = 240;
 
     private void updateTripleLanes() {
-        if (timer % LANE_FIRE_INTERVAL == 0) {
+        // ลด interval เมื่อยากขึ้น (ยิงถี่ขึ้น): interval ÷ difficulty
+        int fireInterval = Math.max(10, (int)(LANE_FIRE_INTERVAL / difficultyMultiplier));
+        if (timer % fireInterval == 0) {
             int segment = gp.boxWidth / 4;
             for (int i = 1; i <= 3; i++) {
                 int bx = gp.boxX + segment * i - 8;
                 int by = gp.boxY + 10;
-                // speed 3 (เดิม 5), ขนาดเล็กลง 14 (เดิม 16)
-                bullets.add(new Bullet(bx, by, 0, 3f, 14, Color.CYAN, BulletShape.CIRCLE));
+                // speed คูณด้วย difficulty
+                float speed = 3f * difficultyMultiplier;
+                bullets.add(new Bullet(bx, by, 0, speed, 14, Color.CYAN, BulletShape.CIRCLE));
             }
         }
         if (timer >= LANE_DURATION) active = false;
@@ -144,17 +161,20 @@ public class Obstacle {
     private static final int SPIRAL_DURATION = 400;
 
     private void updateSpiralCovid() {
-        if (timer % 20 == 0) {
+        // ยิงถี่ขึ้นและเร็วขึ้นตาม difficulty
+        int fireInterval = Math.max(5, (int)(20 / difficultyMultiplier));
+        if (timer % fireInterval == 0) {
             int cx = gp.boxX + gp.boxWidth  / 2;
             int cy = gp.boxY + gp.boxHeight / 2;
+            float bulletSpeed = 2f * difficultyMultiplier;
 
             for (int arm = 0; arm < SPIRAL_ARMS; arm++) {
                 double angle = spiralAngle + (Math.PI * 2 / SPIRAL_ARMS) * arm;
-                float vx = (float)(Math.cos(angle) * 2);
-                float vy = (float)(Math.sin(angle) * 2);
+                float vx = (float)(Math.cos(angle) * bulletSpeed);
+                float vy = (float)(Math.sin(angle) * bulletSpeed);
                 bullets.add(new Bullet(cx, cy, vx, vy, 12, new Color(255, 120, 0), BulletShape.CIRCLE));
             }
-            spiralAngle += 0.35; // หมุนช้าลง (เดิม 0.25)
+            spiralAngle += 0.35;
         }
         if (timer >= SPIRAL_DURATION) active = false;
     }
@@ -167,23 +187,28 @@ public class Obstacle {
     private static final int   LAVA_HOLD_TIME  = 60;
 
     private void updateLavaFloor() {
+        // ลาวาขึ้นเร็วและสูงขึ้นตาม difficulty
+        float riseSpeed = LAVA_RISE_SPEED * difficultyMultiplier;
+        float maxHeight = LAVA_MAX * Math.min(difficultyMultiplier, 1.5f); // สูงสุด 135px ที่ d=1.5
+        int   holdTime  = Math.max(30, (int)(LAVA_HOLD_TIME / difficultyMultiplier));
+
         if (!lavaRising && !lavaHolding && lavaHeight == 0) {
             lavaRising = true;
         }
 
         if (lavaRising) {
-            lavaHeight += LAVA_RISE_SPEED;
-            if (lavaHeight >= LAVA_MAX) {
-                lavaHeight   = LAVA_MAX;
+            lavaHeight += riseSpeed;
+            if (lavaHeight >= maxHeight) {
+                lavaHeight   = maxHeight;
                 lavaRising   = false;
                 lavaHolding  = true;
                 lavaDuration = 0;
             }
         } else if (lavaHolding) {
             lavaDuration++;
-            if (lavaDuration >= LAVA_HOLD_TIME) lavaHolding = false;
+            if (lavaDuration >= holdTime) lavaHolding = false;
         } else if (lavaHeight > 0) {
-            lavaHeight -= LAVA_RISE_SPEED;
+            lavaHeight -= riseSpeed;
             if (lavaHeight <= 0) {
                 lavaHeight = 0;
                 active     = false;
@@ -221,14 +246,17 @@ public class Obstacle {
     private static final int QUAD_DURATION      = 300;
 
     private void updateQuadCorners() {
-        if (timer % QUAD_WAVE_INTERVAL == 0) {
+        // ยิงถี่ขึ้นและเร็วขึ้นตาม difficulty
+        int waveInterval = Math.max(30, (int)(QUAD_WAVE_INTERVAL / difficultyMultiplier));
+        if (timer % waveInterval == 0) {
             int cx = gp.boxX + gp.boxWidth  / 2;
             int cy = gp.boxY + gp.boxHeight / 2;
+            float bulletSpeed = 3f * difficultyMultiplier;
 
             int[][] corners = {
-                    { gp.boxX + 10,               gp.boxY + 10              },
-                    { gp.boxX + gp.boxWidth - 10,  gp.boxY + 10              },
-                    { gp.boxX + 10,               gp.boxY + gp.boxHeight - 10 },
+                    { gp.boxX + 10,               gp.boxY + 10                },
+                    { gp.boxX + gp.boxWidth - 10,  gp.boxY + 10                },
+                    { gp.boxX + 10,               gp.boxY + gp.boxHeight - 10  },
                     { gp.boxX + gp.boxWidth - 10,  gp.boxY + gp.boxHeight - 10 }
             };
 
@@ -236,8 +264,8 @@ public class Obstacle {
                 double dx   = cx - c[0];
                 double dy   = cy - c[1];
                 double dist = Math.sqrt(dx * dx + dy * dy);
-                float  vx   = (float)(dx / dist * 3.0);
-                float  vy   = (float)(dy / dist * 3.0);
+                float  vx   = (float)(dx / dist * bulletSpeed);
+                float  vy   = (float)(dy / dist * bulletSpeed);
                 bullets.add(new Bullet(c[0], c[1], vx, vy, 16, new Color(180, 0, 255), BulletShape.DIAMOND));
             }
         }

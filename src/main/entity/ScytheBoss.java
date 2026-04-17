@@ -7,7 +7,7 @@ import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import main.GamePanel;
 
-public class ScytheBoss extends Entity {
+public class ScytheBoss extends PlayerValue {
     // --- ค่าคงที่สำหรับสถานะของบอส ---
     public static final int STATE_IDLE = 0;
     public static final int STATE_ATTACK = 1;

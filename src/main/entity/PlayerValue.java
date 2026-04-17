@@ -1,0 +1,52 @@
+package main.entity;
+
+import java.awt.image.BufferedImage;
+
+public class PlayerValue {
+    public int x;
+    public int y;
+    public int speed;
+    public BufferedImage up1;
+    public BufferedImage up2;
+    public BufferedImage down1;
+    public BufferedImage down2;
+    public BufferedImage left1;
+    public BufferedImage left2;
+    public BufferedImage left3;
+    public BufferedImage left4;
+    public BufferedImage left5;
+    public BufferedImage left6;
+    public BufferedImage left7;
+    public BufferedImage right1;
+    public BufferedImage right2;
+    public BufferedImage right3;
+    public BufferedImage right4;
+    public BufferedImage right5;
+    public BufferedImage right6;
+    public BufferedImage right7;
+    public BufferedImage jump1;
+    public BufferedImage jump2;
+    public BufferedImage jump3;
+    public BufferedImage jump4;
+    public BufferedImage jump5;
+    public BufferedImage jump6;
+    public BufferedImage jump7;
+    public BufferedImage jump8;
+    public BufferedImage jump9;
+    public BufferedImage fall1;
+    public BufferedImage fall2;
+    public BufferedImage fall3;
+    public BufferedImage fall4;
+    public BufferedImage fall5;
+    public BufferedImage fall6;
+    public BufferedImage fall7;
+    public String direction;
+    public int spriteCounter = 0;
+    public int spriteNum = 1;
+    public boolean jumping = false;
+    public boolean falling = false;
+    public int verticalVelocity = 0;
+    public int jumpStrength = 10;
+    public int gravity = 1;
+    public int groundY;
+}
