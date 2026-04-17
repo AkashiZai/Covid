@@ -8,8 +8,9 @@ public class Key implements KeyListener {
     public boolean upPressed, downPressed, leftPressed, rightPressed;
     public boolean spacePressed, enterPressed;
     public boolean cPressed;      // C — open/close upgrade screen
-    public boolean sPressed;      // S — save game
+    public boolean oPressed;      // O — save game
     public boolean lPressed;      // L — load game
+    public boolean xPressed;      // X — delete game
     public boolean anyKeyPressed;
 
     @Override public void keyTyped(KeyEvent e) {}
@@ -29,13 +30,15 @@ public class Key implements KeyListener {
     private void setKey(int code, boolean pressed) {
         switch (code) {
             case KeyEvent.VK_W     -> upPressed     = pressed;
-            case KeyEvent.VK_S     -> { downPressed = pressed; sPressed = pressed; }
+            case KeyEvent.VK_S     -> downPressed   = pressed;
             case KeyEvent.VK_A     -> leftPressed   = pressed;
             case KeyEvent.VK_D     -> rightPressed  = pressed;
             case KeyEvent.VK_SPACE -> spacePressed  = pressed;
             case KeyEvent.VK_ENTER -> enterPressed  = pressed;
             case KeyEvent.VK_C     -> cPressed      = pressed;
+            case KeyEvent.VK_O     -> oPressed      = pressed; // 'O' mapped to save
             case KeyEvent.VK_L     -> lPressed      = pressed;
+            case KeyEvent.VK_X     -> xPressed      = pressed; // 'X' mapped to delete
         }
     }
 }

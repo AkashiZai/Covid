@@ -3,6 +3,7 @@ package main;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 import javax.imageio.ImageIO;
@@ -16,20 +17,18 @@ import main.object.Obstacle;
 
 public class GamePanel extends JPanel implements Runnable {
 
-    // ── Screen & tile settings ────────────────────────────────────────
-    public final int tileSize     = 64;
+    // ── Screen settings ───────────────────────────────────────────────
     public final int screenWidth  = 1024;
     public final int screenHeight = 768;
-    private final int FPS         = 60;
 
     // ── Game objects ──────────────────────────────────────────────────
     public final Key keyH = new Key();
     public Player player;
-    public ScytheBoss scytheBoss; // บอสด่าน 1
-    public SkullBoss skullBoss;   // บอสด่าน 2
-    public KekeBoss kekeBoss;     // บอสด่าน 3
+    public ScytheBoss scytheBoss;
+    public SkullBoss skullBoss;
+    public KekeBoss kekeBoss;
     public Obstacle obstacle;
-    private BattleGUI battleGUI;
+    private final BattleGUI battleGUI;
     private Thread gameThread;
 
     // ── Menu / screen states ──────────────────────────────────────────
@@ -49,7 +48,7 @@ public class GamePanel extends JPanel implements Runnable {
 
     // ── ระบบด่าน (Stage System) ───────────────────────────────────────
     public int currentStage         = 1;
-    public int highestUnlockedStage = 1; // เริ่มต้นเล่นได้แค่ด่าน 1
+    public int highestUnlockedStage = 1;
 
     // ── Stats & progression ───────────────────────────────────────────
     int playerMaxHp     = 20;
@@ -57,16 +56,15 @@ public class GamePanel extends JPanel implements Runnable {
     public int playerPoints = 0;
     public int playerAtkLv  = 1;
     public int playerHpLv   = 1;
-    public final int maxStatLv   = 20; // อัพได้สูงสุด 20 เลเวล
+    public final int maxStatLv   = 20;
     public final int upgradeCost = 30;
-    private int upgradeSelection = 0;  // 0 = HP, 1 = ATK
+    private int upgradeSelection = 0;
 
     // ── Turn phases ───────────────────────────────────────────────────
     public int battlePhase = 0;
     public final int playerTurnPhase = 0;
     public final int bossAttackPhase = 1;
 
-    // Player turn sub-states
     private static final int PT_IDLE             = 0;
     private static final int PT_SHOWING_QUESTION = 1;
     private static final int PT_ANSWERED         = 2;
@@ -77,7 +75,7 @@ public class GamePanel extends JPanel implements Runnable {
     private boolean pendingBossPhase = false;
     private static final int FEEDBACK_FRAMES = 70;
 
-    // ── Pattern queue (boss attack patterns) ─────────────────────────
+    // ── Pattern queue ─────────────────────────────────────────────────
     private final Random rng = new Random();
     private final List<Integer> patternQueue = new ArrayList<>();
 
@@ -88,7 +86,7 @@ public class GamePanel extends JPanel implements Runnable {
     private int     initialCooldownTimer  = 0;
 
     private static final int PATTERN_COOLDOWN = 60;
-    private static final int INITIAL_COOLDOWN = 180; // 3 seconds
+    private static final int INITIAL_COOLDOWN = 180;
 
     // ── Misc ──────────────────────────────────────────────────────────
     private int resultTimer      = 0;
@@ -96,16 +94,17 @@ public class GamePanel extends JPanel implements Runnable {
     private int lastGainedPoints = 0;
     private static final int RESULT_DISPLAY_FRAMES = 180;
 
-    // Title screen & Backgrounds
     private int titleAnimCounter  = 0;
     private int currentTitleFrame = 1;
     private BufferedImage titleFrame1, titleFrame2;
     private BufferedImage bgStage1, bgStage2, bgStage3;
 
+    private BufferedImage boss1Img, boss2Img, boss3Img;
+
     public Font kanitFont;
 
     // ── Save system ───────────────────────────────────────────────────
-    private static final String SAVE_FILE = "savegame.dat";
+    private int currentSaveSlot = 1;
     private String saveStatusText = "";
     private int    saveStatusTimer = 0;
     private static final int SAVE_STATUS_FRAMES = 120;
@@ -152,6 +151,10 @@ public class GamePanel extends JPanel implements Runnable {
         bgStage1 = loadBgImage("/main/bg/1.png");
         bgStage2 = loadBgImage("/main/bg/2.png");
         bgStage3 = loadBgImage("/main/bg/3.png");
+
+        boss1Img = loadBgImage("/main/scytheboss/ScytheBoss1.png");
+        boss2Img = loadBgImage("/main/skullboss/SkullBoss1.png");
+        boss3Img = loadBgImage("/main/kekeboss/ZKekeBoss1.png");
     }
 
     private BufferedImage loadTitleImage(String resourcePath) {
@@ -160,7 +163,6 @@ public class GamePanel extends JPanel implements Runnable {
             BufferedImage image = ImageIO.read(is);
             return (image != null) ? image : createTitlePlaceholder();
         } catch (Exception e) {
-            e.printStackTrace();
             return createTitlePlaceholder();
         }
     }
@@ -170,7 +172,6 @@ public class GamePanel extends JPanel implements Runnable {
             if (is == null) return null;
             return ImageIO.read(is);
         } catch (Exception e) {
-            System.err.println("Cannot load background: " + resourcePath);
             return null;
         }
     }
@@ -180,14 +181,9 @@ public class GamePanel extends JPanel implements Runnable {
         Graphics2D g = placeholder.createGraphics();
         g.setColor(Color.BLACK);
         g.fillRect(0, 0, screenWidth, screenHeight);
-
         g.setColor(Color.WHITE);
         g.setFont(new Font("Arial", Font.BOLD, 48));
         g.drawString("COVIDTALE", 80, 120);
-        g.setFont(new Font("Arial", Font.PLAIN, 24));
-        g.drawString("Missing title assets", 80, 170);
-        g.dispose();
-
         return placeholder;
     }
 
@@ -196,9 +192,9 @@ public class GamePanel extends JPanel implements Runnable {
         gameThread.start();
     }
 
-    // ── Game loop (fixed 60 FPS) ──────────────────────────────────────
     @Override
     public void run() {
+        final int FPS   = 60;
         double interval = 1_000_000_000.0 / FPS;
         double delta    = 0;
         long   last     = System.nanoTime();
@@ -215,7 +211,6 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    // ── UPDATE ────────────────────────────────────────────────────────
     public void update() {
         if (menuState == gameOverScreen || menuState == youWinScreen) {
             if (++resultTimer >= RESULT_DISPLAY_FRAMES) {
@@ -313,12 +308,11 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    // ── Menu navigation ───────────────────────────────────────────────
     private void updateMenus() {
         switch (menuState) {
-            case 0 -> updateTitleScreen();
-            case 1 -> updateSelectBossScreen();
-            case 4 -> updateUpgradeScreen();
+            case titleScreen      -> updateTitleScreen();
+            case selectBossScreen -> updateSelectBossScreen();
+            case upgradeScreen    -> updateUpgradeScreen();
         }
     }
 
@@ -344,6 +338,16 @@ public class GamePanel extends JPanel implements Runnable {
             keyH.rightPressed = false;
         }
 
+        // Save Slot selection
+        if (keyH.upPressed) {
+            currentSaveSlot = (currentSaveSlot > 1) ? currentSaveSlot - 1 : 3;
+            keyH.upPressed = false;
+        }
+        if (keyH.downPressed) {
+            currentSaveSlot = (currentSaveSlot < 3) ? currentSaveSlot + 1 : 1;
+            keyH.downPressed = false;
+        }
+
         if (keyH.enterPressed) {
             if (currentStage <= highestUnlockedStage) {
                 startBattle();
@@ -356,8 +360,10 @@ public class GamePanel extends JPanel implements Runnable {
             keyH.cPressed = false;
         }
 
-        if (keyH.sPressed) { saveGame(); keyH.sPressed = false; }
+        // Updated Key Mappings here
+        if (keyH.oPressed) { saveGame(); keyH.oPressed = false; }
         if (keyH.lPressed) { loadGame(); keyH.lPressed = false; }
+        if (keyH.xPressed) { deleteGame(); keyH.xPressed = false; } // Add Delete Trigger
 
         if (saveStatusTimer > 0) saveStatusTimer--;
     }
@@ -408,7 +414,6 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    // ── Player turn ───────────────────────────────────────────────────
     private void updatePlayerTurn() {
         if (feedbackTimer > 0) feedbackTimer--;
         battleGUI.update();
@@ -447,7 +452,7 @@ public class GamePanel extends JPanel implements Runnable {
 
     private void processAnswer(boolean correct) {
         if (correct) {
-            int damage = 20 + (playerAtkLv - 1) * 5;
+            int damage = 1000 + (playerAtkLv - 1) * 5;
             damageCurrentBoss(damage);
             feedbackText = "* โจมตี " + damage + " ดาเมจ!";
         } else {
@@ -458,7 +463,6 @@ public class GamePanel extends JPanel implements Runnable {
         playerTurnState  = PT_ANSWERED;
     }
 
-    // ── Boss attack turn ──────────────────────────────────────────────
     private void updateBossAttack() {
         if (getCurrentBossState() == ScytheBoss.STATE_IDLE) {
             triggerCurrentBossAttack();
@@ -568,7 +572,6 @@ public class GamePanel extends JPanel implements Runnable {
         player.y = boxY + boxHeight / 2 - 32;
     }
 
-    // ── PAINT ─────────────────────────────────────────────────────────
     @Override
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -591,47 +594,36 @@ public class GamePanel extends JPanel implements Runnable {
     private void drawGameOver(Graphics2D g2) {
         g2.setColor(Color.BLACK);
         g2.fillRect(0, 0, screenWidth, screenHeight);
-
-        drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 80f), Color.RED,
-                "GAME OVER", screenHeight / 2 - 60);
-        drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 36f), Color.YELLOW,
-                "ได้รับแต้มความพยายาม: +" + lastGainedPoints + " Points", screenHeight / 2 + 10);
-
+        drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 80f), Color.RED, "GAME OVER", screenHeight / 2 - 60);
+        drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 36f), Color.YELLOW, "ได้รับแต้มความพยายาม: +" + lastGainedPoints + " Points", screenHeight / 2 + 10);
         String dots = ".".repeat((resultTimer / 20) % 4);
-        drawCentered(g2, kanitFont.deriveFont(Font.PLAIN, 28f), Color.WHITE,
-                "กำลังกลับไปหน้าเลือกด่าน" + dots, screenHeight / 2 + 80);
+        drawCentered(g2, kanitFont.deriveFont(Font.PLAIN, 28f), Color.WHITE, "กำลังกลับไปหน้าเลือกด่าน" + dots, screenHeight / 2 + 80);
     }
 
     private void drawYouWin(Graphics2D g2) {
         g2.setColor(Color.BLACK);
         g2.fillRect(0, 0, screenWidth, screenHeight);
-
-        drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 80f), Color.YELLOW,
-                "YOU WIN!", screenHeight / 2 - 70);
-        drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 36f), new Color(100, 255, 100),
-                "ได้รับแต้มชัยชนะ: +" + lastGainedPoints + " Points", screenHeight / 2 - 10);
+        drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 80f), Color.YELLOW, "YOU WIN!", screenHeight / 2 - 70);
+        drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 36f), new Color(100, 255, 100), "ได้รับแต้มชัยชนะ: +" + lastGainedPoints + " Points", screenHeight / 2 - 10);
 
         if (currentStage < 3) {
-            drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 28f), new Color(255, 220, 80),
-                    "★  ปลดล็อคด่านที่ " + (currentStage + 1) + " แล้ว!", screenHeight / 2 + 45);
+            drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 28f), new Color(255, 220, 80), "ปลดล็อคด่านที่ " + (currentStage + 1) + " แล้ว!", screenHeight / 2 + 45);
         } else {
-            drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 28f), new Color(255, 80, 255),
-                    "★  คุณเอาชนะทุกด่านแล้ว! ยอดเยี่ยมมาก!", screenHeight / 2 + 45);
+            drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 28f), new Color(255, 80, 255), "คุณเอาชนะทุกด่านแล้ว! ยอดเยี่ยมมาก!", screenHeight / 2 + 45);
         }
 
         String dots = ".".repeat((resultTimer / 20) % 4);
-        drawCentered(g2, kanitFont.deriveFont(Font.PLAIN, 28f), Color.WHITE,
-                "กำลังกลับไปหน้าเลือกด่าน" + dots, screenHeight / 2 + 110);
+        drawCentered(g2, kanitFont.deriveFont(Font.PLAIN, 28f), Color.WHITE, "กำลังกลับไปหน้าเลือกด่าน" + dots, screenHeight / 2 + 110);
     }
 
     private void drawMenus(Graphics2D g2) {
         switch (menuState) {
-            case 0 -> {
+            case titleScreen -> {
                 BufferedImage frame = (currentTitleFrame == 1) ? titleFrame1 : titleFrame2;
                 if (frame != null) g2.drawImage(frame, 0, 0, screenWidth, screenHeight, null);
             }
-            case 1 -> drawSelectStageScreen(g2);
-            case 4 -> drawUpgradeScreen(g2);
+            case selectBossScreen -> drawSelectStageScreen(g2);
+            case upgradeScreen    -> drawUpgradeScreen(g2);
         }
     }
 
@@ -639,21 +631,20 @@ public class GamePanel extends JPanel implements Runnable {
         g2.setColor(Color.BLACK);
         g2.fillRect(0, 0, screenWidth, screenHeight);
 
-        drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 42f), Color.WHITE, "เลือกด่าน", 80);
+        drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 42f), Color.WHITE, "เลือกด่าน", 50);
 
-        int cardW  = 220, cardH = 170;
+        int cardW  = 220, cardH = 200;
         int startX = (screenWidth - (cardW * 3 + 40 * 2)) / 2;
-        int cardY  = 130;
+        int cardY  = 90;
 
         String[] stageNames = { "ด่าน 1", "ด่าน 2", "ด่าน 3" };
-        String[] bossNames  = { "Scythe Boss", "Stage 2 Boss", "Stage 3 Boss" };
+        String[] bossNames  = { "Scythe Boss", "Skull Boss", "Slime Infected Covid Boss" };
         String[] diffLabels = { "ปกติ", "ยากขึ้น ×1.5", "ยากขึ้น ×2.0" };
         Color[] cardColors  = {
                 new Color(30, 80, 160),
                 new Color(130, 40, 140),
                 new Color(160, 50, 20)
         };
-        int[] winPoints = { 60, 90, 120 };
 
         for (int i = 0; i < 3; i++) {
             int stageNum = i + 1;
@@ -677,35 +668,31 @@ public class GamePanel extends JPanel implements Runnable {
             if (!unlocked) {
                 g2.setFont(kanitFont.deriveFont(Font.BOLD, 28f));
                 g2.setColor(new Color(120, 120, 120));
-                drawCenteredInRect(g2, "LOCKED", cx, cardY + 15, cardW, 40);
+                drawCenteredInRect(g2, "LOCKED", cx, cardY + 30, cardW, 40);
 
                 g2.setFont(kanitFont.deriveFont(Font.BOLD, 20f));
-                drawCenteredInRect(g2, stageNames[i], cx, cardY + 60, cardW, 28);
-
-                g2.setFont(kanitFont.deriveFont(Font.PLAIN, 16f));
-                drawCenteredInRect(g2, "ชนะด่าน " + i + " ก่อน", cx, cardY + 94, cardW, 24);
+                drawCenteredInRect(g2, stageNames[i], cx, cardY + 80, cardW, 28);
             } else {
                 g2.setFont(kanitFont.deriveFont(Font.BOLD, 26f));
                 g2.setColor(Color.WHITE);
                 drawCenteredInRect(g2, stageNames[i], cx, cardY + 10, cardW, 36);
 
+                BufferedImage img = (i == 0) ? boss1Img : (i == 1) ? boss2Img : boss3Img;
+                if(img != null) {
+                    g2.drawImage(img, cx + (cardW - 64) / 2, cardY + 50, 64, 64, null);
+                }
+
                 g2.setFont(kanitFont.deriveFont(Font.PLAIN, 18f));
                 g2.setColor(new Color(200, 200, 255));
-                drawCenteredInRect(g2, bossNames[i], cx, cardY + 52, cardW, 26);
+                drawCenteredInRect(g2, bossNames[i], cx, cardY + 120, cardW, 26);
 
                 g2.setFont(kanitFont.deriveFont(Font.PLAIN, 16f));
                 g2.setColor(new Color(255, 200, 80));
-                drawCenteredInRect(g2, diffLabels[i], cx, cardY + 82, cardW, 24);
-
-                g2.setColor(new Color(100, 255, 150));
-                drawCenteredInRect(g2, "ชนะ = +" + winPoints[i] + " pts", cx, cardY + 110, cardW, 22);
-
-                g2.setColor(new Color(180, 255, 180));
-                drawCenteredInRect(g2, "พ่าย = +" + (i * 3) + " pts/sec×½", cx, cardY + 136, cardW, 20);
+                drawCenteredInRect(g2, diffLabels[i], cx, cardY + 150, cardW, 24);
             }
         }
 
-        int msgY = cardY + cardH + 30;
+        int msgY = cardY + cardH + 45;
 
         if (currentStage <= highestUnlockedStage) {
             drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 26f), new Color(100, 255, 150),
@@ -716,75 +703,76 @@ public class GamePanel extends JPanel implements Runnable {
         }
 
         drawCentered(g2, kanitFont.deriveFont(Font.PLAIN, 22f), Color.GRAY,
-                "A / D  เลื่อนเลือกด่าน", msgY + 40);
+                "A / D  เลื่อนเลือกด่าน", msgY + 35);
         drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 22f), Color.YELLOW,
-                "[C] อัปเกรดตัวละคร  |  แต้มที่มี: " + playerPoints + " pts", msgY + 80);
-        drawCentered(g2, kanitFont.deriveFont(Font.PLAIN, 20f), new Color(180, 180, 255),
-                "HP Lv." + playerHpLv + " (HP " + (20 + (playerHpLv - 1) * 5) + ")   " +
-                        "ATK Lv." + playerAtkLv + " (DMG " + (20 + (playerAtkLv - 1) * 5) + ")",
-                msgY + 118);
+                "[C] อัปเกรดตัวละคร  |  แต้มที่มี: " + playerPoints + " pts", msgY + 70);
 
-        // ── Save / Load buttons ────────────────────────────────────────
-        int btnY   = msgY + 168;
-        int btnW   = 200;
-        int btnH   = 46;
-        int gap    = 30;
-        int totalW = btnW * 2 + gap;
-        int btnStartX = (screenWidth - totalW) / 2;
+        // ── 3 Slot Save System UI ────────────────────────────────────────
+        int slotStartY = msgY + 100;
 
-        // Save button
-        g2.setColor(new Color(30, 130, 60));
-        g2.fillRoundRect(btnStartX, btnY, btnW, btnH, 14, 14);
-        g2.setColor(new Color(80, 255, 120));
-        g2.setStroke(new BasicStroke(2));
-        g2.drawRoundRect(btnStartX, btnY, btnW, btnH, 14, 14);
-        g2.setStroke(new BasicStroke(1));
-        g2.setFont(kanitFont.deriveFont(Font.BOLD, 22f));
-        g2.setColor(Color.WHITE);
-        drawCenteredInRect(g2, "[ S ]  บันทึกเกม", btnStartX, btnY, btnW, btnH);
+        // Updated text instructions here
+        drawCentered(g2, kanitFont.deriveFont(Font.PLAIN, 20f), Color.LIGHT_GRAY,
+                "W / S เลือกช่อง | [ O ] เซฟ | [ L ] โหลด | [ X ] ลบเซฟ", slotStartY);
 
-        // Load button
-        int loadX = btnStartX + btnW + gap;
-        g2.setColor(new Color(30, 70, 150));
-        g2.fillRoundRect(loadX, btnY, btnW, btnH, 14, 14);
-        g2.setColor(new Color(80, 160, 255));
-        g2.setStroke(new BasicStroke(2));
-        g2.drawRoundRect(loadX, btnY, btnW, btnH, 14, 14);
-        g2.setStroke(new BasicStroke(1));
-        g2.setFont(kanitFont.deriveFont(Font.BOLD, 22f));
-        g2.setColor(Color.WHITE);
-        drawCenteredInRect(g2, "[ L ]  โหลดเกม", loadX, btnY, btnW, btnH);
+        for(int i = 1; i <= 3; i++) {
+            File f = new File("savegame" + i + ".dat");
+            String dateStr = "Empty";
+            if (f.exists()) {
+                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+                dateStr = sdf.format(new Date(f.lastModified()));
+            }
 
-        // Save/Load status message
+            Color bg = (currentSaveSlot == i) ? new Color(80, 80, 150) : new Color(40, 40, 40);
+            g2.setColor(bg);
+            int rw = 360;
+            int rh = 34;
+            int rx = screenWidth/2 - rw/2;
+            int ry = slotStartY + 20 + (i-1)*(rh + 10);
+
+            g2.fillRoundRect(rx, ry, rw, rh, 10, 10);
+
+            if (currentSaveSlot == i) {
+                g2.setColor(Color.WHITE);
+                g2.setStroke(new BasicStroke(2));
+                g2.drawRoundRect(rx, ry, rw, rh, 10, 10);
+                g2.setStroke(new BasicStroke(1));
+            }
+
+            g2.setColor(Color.WHITE);
+            g2.setFont(kanitFont.deriveFont(Font.BOLD, 18f));
+            g2.drawString("Slot " + i + " :  " + dateStr, rx + 20, ry + 24);
+        }
+
         if (saveStatusTimer > 0) {
-            boolean ok = saveStatusText.startsWith("✔");
-            g2.setColor(ok ? new Color(80, 255, 120) : new Color(255, 100, 100));
+            // Included "Deleted" status color check
+            Color statusColor = saveStatusText.equals("Saved") || saveStatusText.equals("Loaded") || saveStatusText.equals("Deleted") ? new Color(80, 255, 120) : new Color(255, 100, 100);
+            g2.setColor(statusColor);
             g2.setFont(kanitFont.deriveFont(Font.BOLD, 22f));
-            drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 22f),
-                    ok ? new Color(80, 255, 120) : new Color(255, 100, 100),
-                    saveStatusText, btnY + btnH + 34);
+            drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 22f), statusColor,
+                    saveStatusText, slotStartY + 180);
         }
     }
 
-    // ── Save / Load ───────────────────────────────────────────────────
+    // ── Save / Load System ────────────────────────────────────────────
     public void saveGame() {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(SAVE_FILE))) {
+        String filename = "savegame" + currentSaveSlot + ".dat";
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(filename))) {
             bw.write("playerPoints=" + playerPoints); bw.newLine();
             bw.write("playerAtkLv=" + playerAtkLv);   bw.newLine();
             bw.write("playerHpLv="  + playerHpLv);    bw.newLine();
             bw.write("highestUnlockedStage=" + highestUnlockedStage); bw.newLine();
-            saveStatusText  = "✔ บันทึกเกมสำเร็จ!";
+            saveStatusText  = "Saved";
             saveStatusTimer = SAVE_STATUS_FRAMES;
         } catch (IOException e) {
-            saveStatusText  = "✘ บันทึกไม่สำเร็จ: " + e.getMessage();
+            saveStatusText  = "Error";
             saveStatusTimer = SAVE_STATUS_FRAMES;
         }
     }
 
     public void loadGame() {
-        File f = new File(SAVE_FILE);
+        File f = new File("savegame" + currentSaveSlot + ".dat");
         if (!f.exists()) {
-            saveStatusText  = "✘ ไม่พบไฟล์เซฟ";
+            saveStatusText  = "Empty";
             saveStatusTimer = SAVE_STATUS_FRAMES;
             return;
         }
@@ -800,12 +788,27 @@ public class GamePanel extends JPanel implements Runnable {
                     case "highestUnlockedStage"  -> highestUnlockedStage  = Integer.parseInt(parts[1].trim());
                 }
             }
-            saveStatusText  = "✔ โหลดเกมสำเร็จ!";
+            saveStatusText  = "Loaded";
             saveStatusTimer = SAVE_STATUS_FRAMES;
         } catch (IOException | NumberFormatException e) {
-            saveStatusText  = "✘ โหลดไม่สำเร็จ: " + e.getMessage();
+            saveStatusText  = "Error";
             saveStatusTimer = SAVE_STATUS_FRAMES;
         }
+    }
+
+    // NEW METHOD: Delete Game
+    public void deleteGame() {
+        File f = new File("savegame" + currentSaveSlot + ".dat");
+        if (f.exists()) {
+            if (f.delete()) {
+                saveStatusText = "Deleted";
+            } else {
+                saveStatusText = "Error";
+            }
+        } else {
+            saveStatusText = "Empty";
+        }
+        saveStatusTimer = SAVE_STATUS_FRAMES;
     }
 
     private void drawCenteredInRect(Graphics2D g2, String text, int rx, int ry, int rw, int rh) {
@@ -893,8 +896,8 @@ public class GamePanel extends JPanel implements Runnable {
 
     private void drawStatusText(Graphics2D g2) {
         String bossName = switch (currentStage) {
-            case 2  -> "Stage 2 Boss";
-            case 3  -> "Stage 3 Boss";
+            case 2  -> "Skull Boss";
+            case 3  -> "Slime Infected Covid Boss";
             default -> "Scythe Boss";
         };
 
@@ -932,7 +935,6 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     private void drawHpBars(Graphics2D g2) {
-        // Player HP bar
         int sy = boxY + boxHeight + 40;
         g2.setFont(kanitFont.deriveFont(Font.PLAIN, 24f));
         g2.setColor(Color.WHITE);
@@ -944,7 +946,6 @@ public class GamePanel extends JPanel implements Runnable {
         g2.setColor(Color.WHITE);
         g2.drawString(playerCurrentHp + " / " + playerMaxHp, boxX + 180 + playerMaxHp * 5 + 20, sy);
 
-        // Boss HP bar
         int by       = boxY - 30;
         int bossMax  = getCurrentBossMaxHp();
         int bossHp   = getCurrentBossHp();

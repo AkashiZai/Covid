@@ -37,14 +37,6 @@ public class Obstacle {
     private boolean active         = false;
     private int     timer          = 0;
 
-    /**
-     * difficultyMultiplier — คูณค่าความยากของทุก pattern
-     *   ด่าน 1 = 1.0 (ค่าเดิม)
-     *   ด่าน 2 = 1.5 (ยากขึ้น 50%)
-     *   ด่าน 3 = 2.0 (ยากขึ้น 100%)
-     *
-     * ค่านี้ถูกนำไปคูณ speed ของกระสุน และลดช่วงเวลา fire interval ลง
-     */
     private float difficultyMultiplier = 1.0f;
 
     public void setDifficultyMultiplier(float multiplier) {
@@ -68,8 +60,6 @@ public class Obstacle {
     public Obstacle(GamePanel gp) {
         this.gp = gp;
     }
-
-    // ─────────────────────── PUBLIC API ──────────────────────────────
 
     public void startNextPattern() {
         startPattern(rng.nextInt(4));
@@ -133,35 +123,32 @@ public class Obstacle {
     public boolean isActive() { return active; }
 
     // ─────────────────────── PATTERN 0 : TRIPLE LANES ────────────────
-    // กระสุน 3 แถวยิงลงมา
-    // ความยาก: ช้า (speed 3), ยิงทุก 50 frame, หยุดหลัง 240 frame (4 วิ)
     private static final int LANE_FIRE_INTERVAL = 50;
     private static final int LANE_DURATION      = 240;
 
     private void updateTripleLanes() {
-        // ลด interval เมื่อยากขึ้น (ยิงถี่ขึ้น): interval ÷ difficulty
         int fireInterval = Math.max(10, (int)(LANE_FIRE_INTERVAL / difficultyMultiplier));
         if (timer % fireInterval == 0) {
             int segment = gp.boxWidth / 4;
             for (int i = 1; i <= 3; i++) {
                 int bx = gp.boxX + segment * i - 8;
                 int by = gp.boxY + 10;
-                // speed คูณด้วย difficulty
                 float speed = 3f * difficultyMultiplier;
-                bullets.add(new Bullet(bx, by, 0, speed, 14, Color.CYAN, BulletShape.CIRCLE));
+
+                // Modified: Now shoots in a V-Shape Spread instead of just straight down
+                float vx = (i == 1) ? -1.5f : (i == 3) ? 1.5f : 0f;
+
+                bullets.add(new Bullet(bx, by, vx, speed, 14, Color.CYAN, BulletShape.CIRCLE));
             }
         }
         if (timer >= LANE_DURATION) active = false;
     }
 
     // ─────────────────────── PATTERN 1 : SPIRAL COVID ────────────────
-    // กระสุน spiral ออกจากกึ่งกลาง
-    // ความยาก: 3 แขน (เดิม 5), speed 2.5 (เดิม 3.5), ยิงทุก 5 frame (เดิม 3)
     private static final int SPIRAL_ARMS     = 4;
     private static final int SPIRAL_DURATION = 400;
 
     private void updateSpiralCovid() {
-        // ยิงถี่ขึ้นและเร็วขึ้นตาม difficulty
         int fireInterval = Math.max(5, (int)(20 / difficultyMultiplier));
         if (timer % fireInterval == 0) {
             int cx = gp.boxX + gp.boxWidth  / 2;
@@ -180,16 +167,13 @@ public class Obstacle {
     }
 
     // ─────────────────────── PATTERN 2 : LAVA FLOOR ──────────────────
-    // พื้นลาวาขึ้นจากล่าง
-    // ความยาก: สูงสุด 90px (เดิม 140), ค้าง 60 frame (เดิม 120), ขึ้น/ลงเร็ว 1.5 (เดิม 2.5)
     private static final float LAVA_RISE_SPEED = 1.5f;
     private static final float LAVA_MAX        = 90f;
     private static final int   LAVA_HOLD_TIME  = 60;
 
     private void updateLavaFloor() {
-        // ลาวาขึ้นเร็วและสูงขึ้นตาม difficulty
         float riseSpeed = LAVA_RISE_SPEED * difficultyMultiplier;
-        float maxHeight = LAVA_MAX * Math.min(difficultyMultiplier, 1.5f); // สูงสุด 135px ที่ d=1.5
+        float maxHeight = LAVA_MAX * Math.min(difficultyMultiplier, 1.5f);
         int   holdTime  = Math.max(30, (int)(LAVA_HOLD_TIME / difficultyMultiplier));
 
         if (!lavaRising && !lavaHolding && lavaHeight == 0) {
@@ -240,13 +224,10 @@ public class Obstacle {
     }
 
     // ─────────────────────── PATTERN 3 : QUAD CORNERS ────────────────
-    // กระสุน 4 มุมพุ่งเข้ากลาง
-    // ความยาก: speed 3 (เดิม 4), ยิงทุก 90 frame (เดิม 60), หยุดหลัง 300 frame
     private static final int QUAD_WAVE_INTERVAL = 90;
     private static final int QUAD_DURATION      = 300;
 
     private void updateQuadCorners() {
-        // ยิงถี่ขึ้นและเร็วขึ้นตาม difficulty
         int waveInterval = Math.max(30, (int)(QUAD_WAVE_INTERVAL / difficultyMultiplier));
         if (timer % waveInterval == 0) {
             int cx = gp.boxX + gp.boxWidth  / 2;
@@ -261,12 +242,15 @@ public class Obstacle {
             };
 
             for (int[] c : corners) {
-                double dx   = cx - c[0];
-                double dy   = cy - c[1];
-                double dist = Math.sqrt(dx * dx + dy * dy);
-                float  vx   = (float)(dx / dist * bulletSpeed);
-                float  vy   = (float)(dy / dist * bulletSpeed);
-                bullets.add(new Bullet(c[0], c[1], vx, vy, 16, new Color(180, 0, 255), BulletShape.DIAMOND));
+                double angleToCenter = Math.atan2(cy - c[1], cx - c[0]);
+
+                // Modified: Shoot a 3-way spread fan from each corner instead of just straight
+                for (int d = -1; d <= 1; d++) {
+                    double spreadAngle = angleToCenter + (d * 0.3);
+                    float  vx   = (float)(Math.cos(spreadAngle) * bulletSpeed);
+                    float  vy   = (float)(Math.sin(spreadAngle) * bulletSpeed);
+                    bullets.add(new Bullet(c[0], c[1], vx, vy, 14, new Color(180, 0, 255), BulletShape.DIAMOND));
+                }
             }
         }
         if (timer >= QUAD_DURATION) active = false;
@@ -318,7 +302,6 @@ public class Obstacle {
                     g2.fillPolygon(px, py, 4);
                 }
             }
-            // glowing edge
             g2.setColor(color.brighter());
             g2.setStroke(new BasicStroke(1.5f));
             if (shape == BulletShape.CIRCLE) {
