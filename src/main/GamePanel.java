@@ -17,11 +17,9 @@ import main.object.Obstacle;
 
 public class GamePanel extends JPanel implements Runnable {
 
-    // ── Screen settings ───────────────────────────────────────────────
     public final int screenWidth  = 1024;
     public final int screenHeight = 768;
 
-    // ── Game objects ──────────────────────────────────────────────────
     public final Key keyH = new Key();
     public Player player;
     public ScytheBoss scytheBoss;
@@ -31,7 +29,6 @@ public class GamePanel extends JPanel implements Runnable {
     private final BattleGUI battleGUI;
     private Thread gameThread;
 
-    // ── Menu / screen states ──────────────────────────────────────────
     public static boolean playState = false;
     public int menuState = 0;
 
@@ -41,16 +38,13 @@ public class GamePanel extends JPanel implements Runnable {
     public final int youWinScreen     = 3;
     public final int upgradeScreen    = 4;
 
-    // ── Battle box (area player moves in) ─────────────────────────────
     public int boxX, boxY;
     public final int boxWidth  = 700;
     public final int boxHeight = 300;
 
-    // ── ระบบด่าน (Stage System) ───────────────────────────────────────
     public int currentStage         = 1;
     public int highestUnlockedStage = 1;
 
-    // ── Stats & progression ───────────────────────────────────────────
     int playerMaxHp     = 20;
     int playerCurrentHp = 20;
     public int playerPoints = 0;
@@ -60,7 +54,6 @@ public class GamePanel extends JPanel implements Runnable {
     public final int upgradeCost = 30;
     private int upgradeSelection = 0;
 
-    // ── Turn phases ───────────────────────────────────────────────────
     public int battlePhase = 0;
     public final int playerTurnPhase = 0;
     public final int bossAttackPhase = 1;
@@ -75,7 +68,6 @@ public class GamePanel extends JPanel implements Runnable {
     private boolean pendingBossPhase = false;
     private static final int FEEDBACK_FRAMES = 70;
 
-    // ── Pattern queue ─────────────────────────────────────────────────
     private final Random rng = new Random();
     private final List<Integer> patternQueue = new ArrayList<>();
 
@@ -84,11 +76,11 @@ public class GamePanel extends JPanel implements Runnable {
     private boolean inCooldown            = false;
     private boolean initialCooldownActive = false;
     private int     initialCooldownTimer  = 0;
+    private boolean bossAttackTriggered   = false;
 
     private static final int PATTERN_COOLDOWN = 60;
     private static final int INITIAL_COOLDOWN = 180;
 
-    // ── Misc ──────────────────────────────────────────────────────────
     private int resultTimer      = 0;
     private int battleFrames     = 0;
     private int lastGainedPoints = 0;
@@ -98,18 +90,15 @@ public class GamePanel extends JPanel implements Runnable {
     private int currentTitleFrame = 1;
     private BufferedImage titleFrame1, titleFrame2;
     private BufferedImage bgStage1, bgStage2, bgStage3;
-
     private BufferedImage boss1Img, boss2Img, boss3Img;
 
     public Font kanitFont;
 
-    // ── Save system ───────────────────────────────────────────────────
     private int currentSaveSlot = 1;
     private String saveStatusText = "";
     private int    saveStatusTimer = 0;
     private static final int SAVE_STATUS_FRAMES = 120;
 
-    // ── Constructor ───────────────────────────────────────────────────
     public GamePanel() {
         player     = new Player(this, keyH);
         scytheBoss = new ScytheBoss(this);
@@ -133,9 +122,17 @@ public class GamePanel extends JPanel implements Runnable {
         loadThaiFont();
     }
 
+    private File getSaveFile(int slot) {
+        String userHome = System.getProperty("user.home");
+        File saveDir = new File(userHome, "CovidTaleSaves");
+        if (!saveDir.exists()) {
+            saveDir.mkdirs();
+        }
+        return new File(saveDir, "savegame" + slot + ".dat");
+    }
+
     private void loadThaiFont() {
-        try {
-            InputStream is = getClass().getResourceAsStream("/main/res/Kanit-Bold.ttf");
+        try (InputStream is = getClass().getResourceAsStream("/main/res/Kanit-Bold.ttf")) {
             kanitFont = (is != null)
                     ? Font.createFont(Font.TRUETYPE_FONT, is)
                     : new Font("Tahoma", Font.BOLD, 24);
@@ -147,11 +144,9 @@ public class GamePanel extends JPanel implements Runnable {
     private void loadImages() {
         titleFrame1 = loadTitleImage("/main/title/title1.png");
         titleFrame2 = loadTitleImage("/main/title/title2.png");
-
         bgStage1 = loadBgImage("/main/bg/1.png");
         bgStage2 = loadBgImage("/main/bg/2.png");
         bgStage3 = loadBgImage("/main/bg/3.png");
-
         boss1Img = loadBgImage("/main/scytheboss/ScytheBoss1.png");
         boss2Img = loadBgImage("/main/skullboss/SkullBoss1.png");
         boss3Img = loadBgImage("/main/kekeboss/ZKekeBoss1.png");
@@ -208,7 +203,6 @@ public class GamePanel extends JPanel implements Runnable {
                 repaint();
                 delta--;
             } else {
-                // FIX: ป้องกันอาการ CPU ทำงาน 100% (Busy waiting) โดยการยอมให้ Thread พัก
                 try {
                     Thread.sleep(1);
                 } catch (InterruptedException e) {
@@ -278,6 +272,16 @@ public class GamePanel extends JPanel implements Runnable {
             case 2 -> skullBoss.triggerAttack();
             case 3 -> kekeBoss.triggerAttack();
         }
+    }
+
+    // สั่งให้บอสหยุดลูปอนิเมชันโจมตีและกลับไปยืนนิ่งเมื่อหมดเทิร์นบอส
+    private void stopCurrentBossAttack() {
+        switch (currentStage) {
+            case 1 -> scytheBoss.stopAttack();
+            case 2 -> skullBoss.stopAttack();
+            case 3 -> kekeBoss.stopAttack();
+        }
+        bossAttackTriggered = false;
     }
 
     private int getCurrentBossState() {
@@ -361,11 +365,7 @@ public class GamePanel extends JPanel implements Runnable {
             keyH.enterPressed = false;
         }
 
-        if (keyH.cPressed) {
-            menuState     = upgradeScreen;
-            keyH.cPressed = false;
-        }
-
+        if (keyH.cPressed) { menuState = upgradeScreen; keyH.cPressed = false; }
         if (keyH.oPressed) { saveGame(); keyH.oPressed = false; }
         if (keyH.lPressed) { loadGame(); keyH.lPressed = false; }
         if (keyH.xPressed) { deleteGame(); keyH.xPressed = false; }
@@ -392,11 +392,13 @@ public class GamePanel extends JPanel implements Runnable {
 
     private void updateUpgradeScreen() {
         if (keyH.upPressed) {
-            upgradeSelection = (upgradeSelection + 1) % 2;
+            upgradeSelection--;
+            if (upgradeSelection < 0) upgradeSelection = 1;
             keyH.upPressed   = false;
         }
         if (keyH.downPressed) {
-            upgradeSelection = (upgradeSelection + 1) % 2;
+            upgradeSelection++;
+            if (upgradeSelection > 1) upgradeSelection = 0;
             keyH.downPressed = false;
         }
 
@@ -405,8 +407,7 @@ public class GamePanel extends JPanel implements Runnable {
                 if (upgradeSelection == 0 && playerHpLv < maxStatLv) {
                     playerHpLv++;
                     playerPoints -= upgradeCost;
-                }
-                if (upgradeSelection == 1 && playerAtkLv < maxStatLv) {
+                } else if (upgradeSelection == 1 && playerAtkLv < maxStatLv) {
                     playerAtkLv++;
                     playerPoints -= upgradeCost;
                 }
@@ -428,6 +429,7 @@ public class GamePanel extends JPanel implements Runnable {
                 if (pendingBossPhase && feedbackTimer <= 0) {
                     pendingBossPhase = false;
                     battlePhase      = bossAttackPhase;
+                    bossAttackTriggered = false;
                     buildPatternQueue();
                     return;
                 }
@@ -469,8 +471,9 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     private void updateBossAttack() {
-        if (getCurrentBossState() == ScytheBoss.STATE_IDLE) {
+        if (getCurrentBossState() == ScytheBoss.STATE_IDLE && !bossAttackTriggered) {
             triggerCurrentBossAttack();
+            bossAttackTriggered = true;
         }
 
         if (initialCooldownActive) {
@@ -488,7 +491,9 @@ public class GamePanel extends JPanel implements Runnable {
                     inCooldown    = true;
                     cooldownTimer = 0;
                 } else {
+                    // จบเทิร์นบอส ให้กลับเป็นเทิร์นผู้เล่น และสั่งบอสหยุดเล่นท่าโจมตี
                     battlePhase = playerTurnPhase;
+                    stopCurrentBossAttack();
                 }
             }
         } else if (++cooldownTimer >= PATTERN_COOLDOWN) {
@@ -567,6 +572,7 @@ public class GamePanel extends JPanel implements Runnable {
         feedbackText         = "";
         feedbackTimer        = 0;
         playerTurnState      = PT_IDLE;
+        bossAttackTriggered  = false;
 
         scytheBoss = new ScytheBoss(this);
         skullBoss  = new SkullBoss(this);
@@ -683,9 +689,7 @@ public class GamePanel extends JPanel implements Runnable {
                 drawCenteredInRect(g2, stageNames[i], cx, cardY + 10, cardW, 36);
 
                 BufferedImage img = (i == 0) ? boss1Img : (i == 1) ? boss2Img : boss3Img;
-                if(img != null) {
-                    g2.drawImage(img, cx + (cardW - 64) / 2, cardY + 50, 64, 64, null);
-                }
+                if(img != null) g2.drawImage(img, cx + (cardW - 64) / 2, cardY + 50, 64, 64, null);
 
                 g2.setFont(kanitFont.deriveFont(Font.PLAIN, 18f));
                 g2.setColor(new Color(200, 200, 255));
@@ -717,7 +721,7 @@ public class GamePanel extends JPanel implements Runnable {
                 "W / S เลือกช่อง | [ O ] เซฟ | [ L ] โหลด | [ X ] ลบเซฟ", slotStartY);
 
         for(int i = 1; i <= 3; i++) {
-            File f = new File("savegame" + i + ".dat");
+            File f = getSaveFile(i);
             String dateStr = "Empty";
             if (f.exists()) {
                 SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
@@ -726,8 +730,7 @@ public class GamePanel extends JPanel implements Runnable {
 
             Color bg = (currentSaveSlot == i) ? new Color(80, 80, 150) : new Color(40, 40, 40);
             g2.setColor(bg);
-            int rw = 360;
-            int rh = 34;
+            int rw = 360, rh = 34;
             int rx = screenWidth/2 - rw/2;
             int ry = slotStartY + 20 + (i-1)*(rh + 10);
 
@@ -755,8 +758,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void saveGame() {
-        String filename = "savegame" + currentSaveSlot + ".dat";
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(filename))) {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(getSaveFile(currentSaveSlot)))) {
             bw.write("playerPoints=" + playerPoints); bw.newLine();
             bw.write("playerAtkLv=" + playerAtkLv);   bw.newLine();
             bw.write("playerHpLv="  + playerHpLv);    bw.newLine();
@@ -770,18 +772,15 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void loadGame() {
-        File f = new File("savegame" + currentSaveSlot + ".dat");
+        File f = getSaveFile(currentSaveSlot);
         if (!f.exists()) {
             saveStatusText  = "Empty";
             saveStatusTimer = SAVE_STATUS_FRAMES;
             return;
         }
 
-        // FIX: นำค่าไปใส่ตัวแปรชั่วคราวก่อน เพื่อป้องกันไฟล์โหลดไม่ครบแล้วค่าพังกลางคัน
-        int tempPoints = playerPoints;
-        int tempAtkLv = playerAtkLv;
-        int tempHpLv = playerHpLv;
-        int tempHighestStage = highestUnlockedStage;
+        int tempPoints = playerPoints, tempAtkLv = playerAtkLv;
+        int tempHpLv = playerHpLv, tempHighestStage = highestUnlockedStage;
 
         try (BufferedReader br = new BufferedReader(new FileReader(f))) {
             String line;
@@ -796,11 +795,10 @@ public class GamePanel extends JPanel implements Runnable {
                 }
             }
 
-            // โหลดครบไร้ Error ค่อยเขียนทับ
-            playerPoints = tempPoints;
-            playerAtkLv = tempAtkLv;
-            playerHpLv = tempHpLv;
-            highestUnlockedStage = tempHighestStage;
+            playerPoints         = Math.max(0, tempPoints);
+            playerAtkLv          = Math.max(1, Math.min(tempAtkLv, maxStatLv));
+            playerHpLv           = Math.max(1, Math.min(tempHpLv, maxStatLv));
+            highestUnlockedStage = Math.max(1, Math.min(tempHighestStage, 3));
 
             saveStatusText  = "Loaded";
             saveStatusTimer = SAVE_STATUS_FRAMES;
@@ -811,16 +809,11 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void deleteGame() {
-        File f = new File("savegame" + currentSaveSlot + ".dat");
+        File f = getSaveFile(currentSaveSlot);
         if (f.exists()) {
-            if (f.delete()) {
-                saveStatusText = "Deleted";
-            } else {
-                saveStatusText = "Error";
-            }
-        } else {
-            saveStatusText = "Empty";
-        }
+            if (f.delete()) saveStatusText = "Deleted";
+            else saveStatusText = "Error";
+        } else saveStatusText = "Empty";
         saveStatusTimer = SAVE_STATUS_FRAMES;
     }
 

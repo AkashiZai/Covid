@@ -7,12 +7,8 @@ import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import main.GamePanel;
 
-/**
- * Stage 2 Boss (SkullBoss)
- */
 public class SkullBoss extends PlayerValue {
 
-    // ── สถานะบอส ───────────────────────────────────────────────────
     public static final int STATE_IDLE       = 0;
     public static final int STATE_ATTACK     = 1;
     public static final int STATE_DEATH      = 2;
@@ -25,7 +21,6 @@ public class SkullBoss extends PlayerValue {
     int frameDelay;
     int loopCount = 0;
 
-    // ความเร็วพื้นฐาน (น้อย = เร็ว)
     final int BASE_FRAME_DELAY = 7;
 
     public BufferedImage[] idleImages;
@@ -39,16 +34,12 @@ public class SkullBoss extends PlayerValue {
 
     public SkullBoss(GamePanel gp) {
         this.gp = gp;
-
-        // ตำแหน่งบอสบนหน้าจอ
         this.x = (gp.screenWidth / 2) - 150;
         this.y = 50;
-
         state            = STATE_IDLE;
         frameIndex       = 0;
         animationCounter = 0;
         frameDelay       = BASE_FRAME_DELAY;
-
         maxHp  = 200;
         hp     = maxHp;
         isDead = false;
@@ -57,34 +48,28 @@ public class SkullBoss extends PlayerValue {
     }
 
     public void getBossImage() {
-        try {
-            // โหลดรูปภาพจาก resource
-            idleImages = new BufferedImage[7];
-            for (int i = 0; i < 7; i++) {
-                idleImages[i] = ImageIO.read(getClass().getResourceAsStream(
-                        "/main/skullboss/SkullBoss" + (i + 4) + ".png"));
-            }
+        idleImages = new BufferedImage[7];
+        for (int i = 0; i < 7; i++) {
+            try { idleImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/skullboss/SkullBoss" + (i + 4) + ".png")); }
+            catch (Exception e) { idleImages[i] = null; }
+        }
 
-            attackImages = new BufferedImage[15];
-            for (int i = 0; i < 15; i++) {
-                attackImages[i] = ImageIO.read(getClass().getResourceAsStream(
-                        "/main/skullboss/SkullBoss" + (i + 12) + ".png"));
-            }
+        attackImages = new BufferedImage[15];
+        for (int i = 0; i < 15; i++) {
+            try { attackImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/skullboss/SkullBoss" + (i + 12) + ".png")); }
+            catch (Exception e) { attackImages[i] = null; }
+        }
 
-            fightLoopImages = new BufferedImage[4];
-            for (int i = 0; i < 4; i++) {
-                fightLoopImages[i] = ImageIO.read(getClass().getResourceAsStream(
-                        "/main/skullboss/SkullBoss" + (i + 28) + ".png"));
-            }
+        fightLoopImages = new BufferedImage[4];
+        for (int i = 0; i < 4; i++) {
+            try { fightLoopImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/skullboss/SkullBoss" + (i + 28) + ".png")); }
+            catch (Exception e) { fightLoopImages[i] = null; }
+        }
 
-            deathImages = new BufferedImage[14];
-            for (int i = 0; i < 14; i++) {
-                deathImages[i] = ImageIO.read(getClass().getResourceAsStream(
-                        "/main/skullboss/SkullBoss" + (i + 34) + ".png"));
-            }
-
-        } catch (Exception e) {
-            System.err.println("[SkullBoss] โหลดรูปไม่ได้: " + e.getMessage());
+        deathImages = new BufferedImage[14];
+        for (int i = 0; i < 14; i++) {
+            try { deathImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/skullboss/SkullBoss" + (i + 34) + ".png")); }
+            catch (Exception e) { deathImages[i] = null; }
         }
     }
 
@@ -107,6 +92,12 @@ public class SkullBoss extends PlayerValue {
         }
     }
 
+    public void stopAttack() {
+        state      = STATE_IDLE;
+        frameIndex = 0;
+        frameDelay = BASE_FRAME_DELAY;
+    }
+
     public void update() {
         if (isDead) return;
 
@@ -127,13 +118,13 @@ public class SkullBoss extends PlayerValue {
                 if (idleImages != null && frameIndex >= idleImages.length) frameIndex = 0;
             } else if (state == STATE_ATTACK) {
                 frameIndex++;
-                if (attackImages != null && frameIndex >= attackImages.length) resetToIdle();
+                if (attackImages != null && frameIndex >= attackImages.length) {
+                    frameIndex = 0;
+                }
             } else if (state == STATE_FIGHT_LOOP) {
                 frameIndex++;
                 if (fightLoopImages != null && frameIndex >= fightLoopImages.length) {
-                    loopCount++;
-                    if (loopCount >= 3) resetToIdle();
-                    else frameIndex = 0;
+                    frameIndex = 0;
                 }
             } else if (state == STATE_DEATH) {
                 frameIndex++;
@@ -145,52 +136,31 @@ public class SkullBoss extends PlayerValue {
         }
     }
 
-    private void resetToIdle() {
-        state      = STATE_IDLE;
-        frameIndex = 0;
-        frameDelay = BASE_FRAME_DELAY;
-    }
-
     public void draw(Graphics2D g2) {
         BufferedImage imageToDraw = null;
 
         switch (state) {
-            case STATE_IDLE:
-                if (idleImages != null && frameIndex < idleImages.length) imageToDraw = idleImages[frameIndex];
-                break;
-            case STATE_ATTACK:
-                if (attackImages != null && frameIndex < attackImages.length) imageToDraw = attackImages[frameIndex];
-                break;
-            case STATE_FIGHT_LOOP:
-                if (fightLoopImages != null && frameIndex < fightLoopImages.length) imageToDraw = fightLoopImages[frameIndex];
-                break;
-            case STATE_DEATH:
-                if (deathImages != null && frameIndex < deathImages.length) imageToDraw = deathImages[frameIndex];
-                break;
+            case STATE_IDLE: if (idleImages != null && frameIndex < idleImages.length) imageToDraw = idleImages[frameIndex]; break;
+            case STATE_ATTACK: if (attackImages != null && frameIndex < attackImages.length) imageToDraw = attackImages[frameIndex]; break;
+            case STATE_FIGHT_LOOP: if (fightLoopImages != null && frameIndex < fightLoopImages.length) imageToDraw = fightLoopImages[frameIndex]; break;
+            case STATE_DEATH: if (deathImages != null && frameIndex < deathImages.length) imageToDraw = deathImages[frameIndex]; break;
         }
 
         if (imageToDraw != null) {
             int originalWidth  = imageToDraw.getWidth();
             int originalHeight = imageToDraw.getHeight();
-
-            // ปรับขนาดพื้นที่วาดให้เป็น 300x200 เท่ากับ ScytheBoss และ KekeBoss
             int desiredWidth   = 300;
             int desiredHeight  = 200;
 
-            // คำนวณอัตราส่วนเพื่อไม่ให้ภาพเบี้ยว
-            double scale       = Math.min((double) desiredWidth / originalWidth,
-                    (double) desiredHeight / originalHeight);
+            double scale       = Math.min((double) desiredWidth / originalWidth, (double) desiredHeight / originalHeight);
             int scaledWidth    = (int)(originalWidth  * scale);
             int scaledHeight   = (int)(originalHeight * scale);
-
-            // วาดให้อยู่ตรงกลางของพื้นที่ 300x200
             int drawX          = this.x + (desiredWidth  - scaledWidth)  / 2;
             int drawY          = this.y + (desiredHeight - scaledHeight) / 2;
 
             g2.drawImage(imageToDraw, drawX, drawY, scaledWidth, scaledHeight, null);
 
         } else {
-            // FIX: เพิ่ม Fallback ป้องกัน Crash และแจ้งเตือนหากไม่มีรูปใน State นั้นๆ
             g2.setColor(Color.RED);
             g2.setFont(new Font("Arial", Font.BOLD, 24));
             g2.drawString("[ SKULL BOSS IMAGE MISSING ]", this.x - 20, this.y + 100);

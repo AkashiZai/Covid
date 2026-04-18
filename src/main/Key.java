@@ -7,38 +7,46 @@ public class Key implements KeyListener {
 
     public boolean upPressed, downPressed, leftPressed, rightPressed;
     public boolean spacePressed, enterPressed;
-    public boolean cPressed;      // C — open/close upgrade screen
-    public boolean oPressed;      // O — save game
-    public boolean lPressed;      // L — load game
-    public boolean xPressed;      // X — delete game
+    public boolean cPressed;
+    public boolean oPressed;
+    public boolean lPressed;
+    public boolean xPressed;
     public boolean anyKeyPressed;
 
     @Override public void keyTyped(KeyEvent e) {}
 
     @Override
     public void keyPressed(KeyEvent e) {
-        anyKeyPressed = true;
         setKey(e.getKeyCode(), true);
+        updateAnyKeyStatus();
     }
 
     @Override
     public void keyReleased(KeyEvent e) {
-        anyKeyPressed = false;
         setKey(e.getKeyCode(), false);
+        updateAnyKeyStatus();
     }
 
     private void setKey(int code, boolean pressed) {
         switch (code) {
-            case KeyEvent.VK_W     -> upPressed     = pressed;
-            case KeyEvent.VK_S     -> downPressed   = pressed;
-            case KeyEvent.VK_A     -> leftPressed   = pressed;
-            case KeyEvent.VK_D     -> rightPressed  = pressed;
-            case KeyEvent.VK_SPACE -> spacePressed  = pressed;
-            case KeyEvent.VK_ENTER -> enterPressed  = pressed;
-            case KeyEvent.VK_C     -> cPressed      = pressed;
-            case KeyEvent.VK_O     -> oPressed      = pressed; // 'O' mapped to save
-            case KeyEvent.VK_L     -> lPressed      = pressed;
-            case KeyEvent.VK_X     -> xPressed      = pressed; // 'X' mapped to delete
+            // FIX 11: รองรับทั้ง WASD และปุ่มลูกศร (Arrow Keys)
+            case KeyEvent.VK_W: case KeyEvent.VK_UP:    upPressed     = pressed; break;
+            case KeyEvent.VK_S: case KeyEvent.VK_DOWN:  downPressed   = pressed; break;
+            case KeyEvent.VK_A: case KeyEvent.VK_LEFT:  leftPressed   = pressed; break;
+            case KeyEvent.VK_D: case KeyEvent.VK_RIGHT: rightPressed  = pressed; break;
+
+            case KeyEvent.VK_SPACE: spacePressed  = pressed; break;
+            case KeyEvent.VK_ENTER: enterPressed  = pressed; break;
+            case KeyEvent.VK_C:     cPressed      = pressed; break;
+            case KeyEvent.VK_O:     oPressed      = pressed; break;
+            case KeyEvent.VK_L:     lPressed      = pressed; break;
+            case KeyEvent.VK_X:     xPressed      = pressed; break;
         }
+    }
+
+    private void updateAnyKeyStatus() {
+        anyKeyPressed = upPressed || downPressed || leftPressed || rightPressed ||
+                spacePressed || enterPressed || cPressed || oPressed ||
+                lPressed || xPressed;
     }
 }

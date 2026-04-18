@@ -8,39 +8,32 @@ import javax.imageio.ImageIO;
 import main.GamePanel;
 
 public class ScytheBoss extends PlayerValue {
-    // --- ค่าคงที่สำหรับสถานะของบอส ---
     public static final int STATE_IDLE = 0;
     public static final int STATE_ATTACK = 1;
     public static final int STATE_DEATH = 2;
 
-    // --- ตัวแปรสำหรับควบคุมอนิเมชัน ---
     GamePanel gp;
     public int state;
     int frameIndex;
     int animationCounter;
     int frameDelay;
 
-    // --- อาร์เรย์สำหรับเก็บรูปภาพของแต่ละสถานะ ---
     public BufferedImage[] idleImages;
     public BufferedImage[] attackImages;
     public BufferedImage[] deathImages;
 
-    // --- คุณสมบัติของบอส ---
     public int maxHp;
     public int hp;
     public boolean isDead;
 
     public ScytheBoss(GamePanel gp) {
         this.gp = gp;
-
         this.x = (gp.screenWidth / 2) - 150;
         this.y = 50;
-
         state = STATE_IDLE;
         frameIndex = 0;
         animationCounter = 0;
         frameDelay = 10;
-
         maxHp = 100;
         hp = maxHp;
         isDead = false;
@@ -49,27 +42,23 @@ public class ScytheBoss extends PlayerValue {
     }
 
     public void getBossImage() {
-        try {
-            // 1. สถานะยืน (Idle): รูปที่ 4 ถึง 10 (รวม 7 รูป)
-            idleImages = new BufferedImage[7];
-            for (int i = 0; i < 7; i++) {
-                idleImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/scytheboss/ScytheBoss" + (i + 4) + ".png"));
-            }
+        // กลับมาใช้ Index เดิมที่ตัดภาพว่างเปล่า (1-3) ทิ้งไป
+        idleImages = new BufferedImage[7];
+        for (int i = 0; i < 7; i++) {
+            try { idleImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/scytheboss/ScytheBoss" + (i + 4) + ".png")); }
+            catch (Exception e) { idleImages[i] = null; }
+        }
 
-            // 2. สถานะโจมตี (Attack): รูปที่ 12 ถึง 20 (รวม 9 รูป)
-            attackImages = new BufferedImage[9];
-            for (int i = 0; i < 9; i++) {
-                attackImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/scytheboss/ScytheBoss" + (i + 12) + ".png"));
-            }
+        attackImages = new BufferedImage[9];
+        for (int i = 0; i < 9; i++) {
+            try { attackImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/scytheboss/ScytheBoss" + (i + 12) + ".png")); }
+            catch (Exception e) { attackImages[i] = null; }
+        }
 
-            deathImages = new BufferedImage[16];
-            for (int i = 0; i < 16; i++) {
-                // i = 0 จะโหลดรูป ScytheBoss22.png, i = 1 โหลด ScytheBoss23.png ไปเรื่อยๆ
-                deathImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/scytheboss/ScytheBoss" + (i + 22) + ".png"));
-            }
-
-        } catch (Exception e) {
-            System.err.println("เกิดข้อผิดพลาดในการโหลดรูปภาพบอส: " + e.getMessage());
+        deathImages = new BufferedImage[16];
+        for (int i = 0; i < 16; i++) {
+            try { deathImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/scytheboss/ScytheBoss" + (i + 22) + ".png")); }
+            catch (Exception e) { deathImages[i] = null; }
         }
     }
 
@@ -81,10 +70,14 @@ public class ScytheBoss extends PlayerValue {
         }
     }
 
+    public void stopAttack() {
+        state = STATE_IDLE;
+        frameIndex = 0;
+        frameDelay = 10;
+    }
+
     public void update() {
-        if (isDead) {
-            return;
-        }
+        if (isDead) return;
 
         if (hp <= 0 && state != STATE_DEATH) {
             state = STATE_DEATH;
@@ -98,23 +91,17 @@ public class ScytheBoss extends PlayerValue {
             animationCounter = 0;
 
             if (state == STATE_IDLE) {
-                // ป้องกัน NullPointerException
                 if (idleImages != null && idleImages.length > 0) {
                     frameIndex++;
-                    if (frameIndex >= idleImages.length) {
-                        frameIndex = 0;
-                    }
+                    if (frameIndex >= idleImages.length) frameIndex = 0;
                 }
             } else if (state == STATE_ATTACK) {
                 if (attackImages != null && attackImages.length > 0) {
                     frameIndex++;
                     if (frameIndex >= attackImages.length) {
-                        state = STATE_IDLE;
-                        frameIndex = 0;
+                        frameIndex = 0; // วนลูปท่าโจมตี
                     }
-                } else {
-                    state = STATE_IDLE; // Fallback หากไม่มีรูป
-                }
+                } else state = STATE_IDLE;
             } else if (state == STATE_DEATH) {
                 if (deathImages != null && deathImages.length > 0) {
                     frameIndex++;
@@ -122,9 +109,7 @@ public class ScytheBoss extends PlayerValue {
                         frameIndex = deathImages.length - 1;
                         isDead = true;
                     }
-                } else {
-                    isDead = true;
-                }
+                } else isDead = true;
             }
         }
     }
@@ -133,35 +118,22 @@ public class ScytheBoss extends PlayerValue {
         BufferedImage imageToDraw = null;
 
         switch (state) {
-            case STATE_IDLE:
-                if (idleImages != null && frameIndex < idleImages.length) {
-                    imageToDraw = idleImages[frameIndex];
-                }
-                break;
-            case STATE_ATTACK:
-                if (attackImages != null && frameIndex < attackImages.length) {
-                    imageToDraw = attackImages[frameIndex];
-                }
-                break;
-            case STATE_DEATH:
-                if (deathImages != null && frameIndex < deathImages.length) {
-                    imageToDraw = deathImages[frameIndex];
-                }
-                break;
+            case STATE_IDLE:   if (idleImages != null && frameIndex < idleImages.length) imageToDraw = idleImages[frameIndex]; break;
+            case STATE_ATTACK: if (attackImages != null && frameIndex < attackImages.length) imageToDraw = attackImages[frameIndex]; break;
+            case STATE_DEATH:  if (deathImages != null && frameIndex < deathImages.length) imageToDraw = deathImages[frameIndex]; break;
         }
 
         if (imageToDraw != null) {
-            int originalWidth = imageToDraw.getWidth();
+            int originalWidth  = imageToDraw.getWidth();
             int originalHeight = imageToDraw.getHeight();
-            int desiredWidth = 300;
-            int desiredHeight = 200;
+            int desiredWidth   = 300;
+            int desiredHeight  = 200;
 
-            double scale = Math.min((double) desiredWidth / originalWidth, (double) desiredHeight / originalHeight);
-            int scaledWidth = (int) (originalWidth * scale);
-            int scaledHeight = (int) (originalHeight * scale);
-
-            int drawX = this.x + (desiredWidth - scaledWidth) / 2;
-            int drawY = this.y + (desiredHeight - scaledHeight) / 2;
+            double scale       = Math.min((double) desiredWidth / originalWidth, (double) desiredHeight / originalHeight);
+            int scaledWidth    = (int) (originalWidth * scale);
+            int scaledHeight   = (int) (originalHeight * scale);
+            int drawX          = this.x + (desiredWidth - scaledWidth) / 2;
+            int drawY          = this.y + (desiredHeight - scaledHeight) / 2;
 
             g2.drawImage(imageToDraw, drawX, drawY, scaledWidth, scaledHeight, null);
 

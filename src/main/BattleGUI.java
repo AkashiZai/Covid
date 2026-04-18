@@ -4,15 +4,13 @@ import java.awt.*;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.text.BreakIterator;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
-/**
- * BattleGUI — Undertale-style quiz panel shown during the player's turn.
- */
 public class BattleGUI {
 
-    // ── Data ──────────────────────────────────────────────────────────
     public static class Question {
         public final String   text;
         public final String[] choices;
@@ -27,7 +25,6 @@ public class BattleGUI {
         }
     }
 
-    // ── Theme colors ──────────────────────────────────────────────────
     private static final Color BG_DARK      = new Color(10,  10,  20);
     private static final Color BG_MID       = new Color(20,  20,  45);
     private static final Color BORDER_COLOR = new Color(180, 160, 255);
@@ -39,18 +36,16 @@ public class BattleGUI {
     private static final Color CHOICE_BG_HL = new Color(80,  60,  120, 180);
     private static final Color SEPARATOR    = new Color(100,  80, 160);
 
-    // ── Fonts ─────────────────────────────────────────────────────────
     private static Font FONT_TITLE, FONT_BODY, FONT_CHOICE, FONT_LABEL, FONT_RESULT;
 
+    // FIX 9: ใช้ Try-With-Resources ปิด InputStream ของ Font อัตโนมัติ ป้องกัน Memory Leak
     static {
-        try {
-            InputStream is = BattleGUI.class.getResourceAsStream("/res/Kanit-Bold.ttf");
-            if (is == null) {
-                is = BattleGUI.class.getResourceAsStream("/main/res/Kanit-Bold.ttf");
-            }
+        try (InputStream is1 = BattleGUI.class.getResourceAsStream("/res/Kanit-Bold.ttf");
+             InputStream is2 = BattleGUI.class.getResourceAsStream("/main/res/Kanit-Bold.ttf")) {
 
-            if (is != null) {
-                Font base   = Font.createFont(Font.TRUETYPE_FONT, is);
+            InputStream targetIs = (is1 != null) ? is1 : is2;
+            if (targetIs != null) {
+                Font base   = Font.createFont(Font.TRUETYPE_FONT, targetIs);
                 FONT_TITLE  = base.deriveFont(Font.PLAIN, 22f);
                 FONT_BODY   = base.deriveFont(Font.PLAIN, 18f);
                 FONT_CHOICE = base.deriveFont(Font.PLAIN, 18f);
@@ -72,7 +67,6 @@ public class BattleGUI {
         FONT_RESULT = f.deriveFont(Font.BOLD,  20f);
     }
 
-    // ── State ─────────────────────────────────────────────────────────
     private final List<Question>   questions = new ArrayList<>();
     private final java.util.Random rng       = new java.util.Random();
 
@@ -83,15 +77,13 @@ public class BattleGUI {
     private boolean  correct     = false;
     private boolean  showResult  = false;
 
-    // Animation
     private int   fadeTimer   = 0;
     private float fadeAlpha   = 0f;
     private int   resultTimer = 0;
 
     private static final int FADE_IN_FRAMES = 15;
-    private static final int RESULT_FRAMES  = 60; // หน่วงเวลาเฉพาะตอนตอบถูก
+    private static final int RESULT_FRAMES  = 60;
 
-    // Layout
     private final int screenW, screenH;
     private final int panelX, panelY;
     private static final int PANEL_W = 720, PANEL_H = 430;
@@ -103,15 +95,11 @@ public class BattleGUI {
         panelY = (screenH - PANEL_H) / 2 + 20;
     }
 
-    // ── Public API ────────────────────────────────────────────────────
     public void loadQuestions(String resourcePath) {
         questions.clear();
         try {
             InputStream is = getClass().getResourceAsStream(resourcePath);
-            if (is == null) {
-                System.err.println("[BattleGUI] ร้ายแรง: ไม่พบไฟล์คำถามที่พาธ " + resourcePath);
-                return; // ออกจากเมธอดทันทีเพื่อป้องกัน NullPointerException
-            }
+            if (is == null) return;
 
             try (BufferedReader br = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
                 String   qText   = null;
@@ -121,7 +109,6 @@ public class BattleGUI {
 
                 for (String line; (line = br.readLine()) != null; ) {
                     line = line.trim();
-                    // ... (โค้ดอ่านไฟล์ข้างในคงเดิมทั้งหมด) ...
                     if (line.equals("_") || line.isEmpty()) {
                         if (qText != null && ci == 3) {
                             questions.add(new Question(qText, choices.clone(), ansIdx, expText));
@@ -152,7 +139,6 @@ public class BattleGUI {
                 if (qText != null && ci == 3) {
                     questions.add(new Question(qText, choices.clone(), ansIdx, expText));
                 }
-                System.out.println("[BattleGUI] โหลดคำถามสำเร็จ: " + questions.size() + " ข้อ");
             }
         } catch (Exception e) {
             System.err.println("[BattleGUI] โหลดคำถามล้มเหลว: " + e.getMessage());
@@ -207,7 +193,6 @@ public class BattleGUI {
     public boolean getResult()    { return correct; }
     public boolean hasQuestions() { return !questions.isEmpty(); }
 
-    // ── Game loop ─────────────────────────────────────────────────────
     public void update() {
         if (!visible) return;
 
@@ -222,23 +207,19 @@ public class BattleGUI {
         }
     }
 
-    // ── Draw ──────────────────────────────────────────────────────────
     public void draw(Graphics2D g2) {
         if (!visible || current == null) return;
 
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Dim overlay
         g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, fadeAlpha * 0.55f));
         g2.setColor(Color.BLACK);
         g2.fillRect(0, 0, screenW, screenH);
         g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, fadeAlpha));
 
-        // Panel background
         g2.setPaint(new GradientPaint(panelX, panelY, BG_DARK, panelX, panelY + PANEL_H, BG_MID));
         g2.fillRoundRect(panelX, panelY, PANEL_W, PANEL_H, 20, 20);
 
-        // Neon border
         g2.setStroke(new BasicStroke(3f));
         g2.setColor(BORDER_COLOR);
         g2.drawRoundRect(panelX, panelY, PANEL_W, PANEL_H, 20, 20);
@@ -246,30 +227,25 @@ public class BattleGUI {
         g2.setColor(new Color(100, 80, 160, 80));
         g2.drawRoundRect(panelX + 6, panelY + 6, PANEL_W - 12, PANEL_H - 12, 16, 16);
 
-        // Title label
         drawCentered(g2, FONT_LABEL, new Color(160, 130, 255), "BATTLE QUIZ", panelY + 26);
         g2.setColor(SEPARATOR);
         g2.setStroke(new BasicStroke(1.5f));
         g2.drawLine(panelX + 20, panelY + 35, panelX + PANEL_W - 20, panelY + 35);
 
-        // Question text
         g2.setFont(FONT_BODY);
         g2.setColor(TEXT_WHITE);
         drawWrappedText(g2, current.text, panelX + 30, panelY + 70, PANEL_W - 60, 28);
 
-        // Separator above choices
         int sepY = panelY + 130;
         g2.setColor(SEPARATOR);
         g2.drawLine(panelX + 20, sepY, panelX + PANEL_W - 20, sepY);
 
-        // Answer choices
         String[] labels = {"A", "B", "C"};
         for (int i = 0; i < 3; i++) {
             int cy = sepY + 30 + i * 56;
             drawChoice(g2, i, cy, labels[i]);
         }
 
-        // Result or hint text at bottom
         if (showResult) {
             String txt = correct ? "CORRECT!" : "WRONG!";
             Color  col = correct ? new Color(100, 255, 100) : new Color(255, 80, 80);
@@ -339,19 +315,24 @@ public class BattleGUI {
         g2.drawString(text, panelX + (PANEL_W - w) / 2, y);
     }
 
+    // FIX 8: แก้บั๊กคำถามภาษาไทยล้นขอบจอ โดยใช้ BreakIterator สำหรับภาษาไทย
     private void drawWrappedText(Graphics2D g2, String text, int x, int y, int maxWidth, int lineHeight) {
-        FontMetrics fm     = g2.getFontMetrics();
-        StringBuilder line = new StringBuilder();
-        int curY           = y;
+        FontMetrics fm = g2.getFontMetrics();
+        BreakIterator boundary = BreakIterator.getWordInstance(new Locale("th", "TH"));
+        boundary.setText(text);
 
-        for (String word : text.split(" ")) {
-            String test = line.isEmpty() ? word : line + " " + word;
-            if (fm.stringWidth(test) > maxWidth && !line.isEmpty()) {
+        StringBuilder line = new StringBuilder();
+        int curY = y;
+        int start = boundary.first();
+
+        for (int end = boundary.next(); end != BreakIterator.DONE; start = end, end = boundary.next()) {
+            String word = text.substring(start, end);
+            if (fm.stringWidth(line.toString() + word) > maxWidth && !line.isEmpty()) {
                 g2.drawString(line.toString(), x, curY);
                 curY += lineHeight;
                 line = new StringBuilder(word);
             } else {
-                line = new StringBuilder(test);
+                line.append(word);
             }
         }
         if (!line.isEmpty()) {

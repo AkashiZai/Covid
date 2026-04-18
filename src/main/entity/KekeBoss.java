@@ -7,12 +7,8 @@ import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import main.GamePanel;
 
-/**
- * Stage 3 Boss (KekeBoss) — บอสด่านที่ 3
- */
 public class KekeBoss extends PlayerValue {
 
-    // ── สถานะบอส ───────────────────────────────────────────────────
     public static final int STATE_IDLE    = 0;
     public static final int STATE_ATTACK  = 1;
     public static final int STATE_DEATH   = 2;
@@ -25,7 +21,6 @@ public class KekeBoss extends PlayerValue {
     int animationCounter;
     int frameDelay;
 
-    // ปรับความเร็วพื้นฐานเป็น 10 เพื่อให้อนิเมชันแสดงผลด้วยความเร็วปกติ (เท่ากับ ScytheBoss)
     final int BASE_FRAME_DELAY = 10;
 
     public BufferedImage[] idleImages;
@@ -42,12 +37,10 @@ public class KekeBoss extends PlayerValue {
         this.gp = gp;
         this.x = (gp.screenWidth / 2) - 150;
         this.y = 50;
-
         state            = STATE_IDLE;
         frameIndex       = 0;
         animationCounter = 0;
         frameDelay       = BASE_FRAME_DELAY;
-
         maxHp  = 150;
         hp     = maxHp;
         isDead = false;
@@ -56,46 +49,50 @@ public class KekeBoss extends PlayerValue {
     }
 
     public void getBossImage() {
-        try {
-            idleImages = new BufferedImage[6];
-            for (int i = 0; i < 6; i++) {
-                idleImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/kekeboss/ZKekeBoss" + (i + 1) + ".png"));
-            }
+        idleImages = new BufferedImage[6];
+        for (int i = 0; i < 6; i++) {
+            try { idleImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/kekeboss/ZKekeBoss" + (i + 1) + ".png")); }
+            catch(Exception e) { idleImages[i] = null; }
+        }
 
-            walkImages = new BufferedImage[12];
-            for (int i = 0; i < 12; i++) {
-                walkImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/kekeboss/ZKekeBoss" + (i + 8) + ".png"));
-            }
+        walkImages = new BufferedImage[12];
+        for (int i = 0; i < 12; i++) {
+            try { walkImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/kekeboss/ZKekeBoss" + (i + 8) + ".png")); }
+            catch(Exception e) { walkImages[i] = null; }
+        }
 
-            specialImages = new BufferedImage[8];
-            for (int i = 0; i < 8; i++) {
-                specialImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/kekeboss/ZKekeBoss" + (i + 21) + ".png"));
-            }
+        specialImages = new BufferedImage[8];
+        for (int i = 0; i < 8; i++) {
+            try { specialImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/kekeboss/ZKekeBoss" + (i + 21) + ".png")); }
+            catch(Exception e) { specialImages[i] = null; }
+        }
 
-            attackImages = new BufferedImage[6];
-            for (int i = 0; i < 6; i++) {
-                attackImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/kekeboss/ZKekeBoss" + (i + 30) + ".png"));
-            }
+        attackImages = new BufferedImage[6];
+        for (int i = 0; i < 6; i++) {
+            try { attackImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/kekeboss/ZKekeBoss" + (i + 30) + ".png")); }
+            catch(Exception e) { attackImages[i] = null; }
+        }
 
-            deathImages = new BufferedImage[6];
-            for (int i = 0; i < 6; i++) {
-                deathImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/kekeboss/ZKekeBoss" + (i + 37) + ".png"));
-            }
-
-        } catch (Exception e) {
-            System.err.println("[KekeBoss] โหลดรูปไม่ได้: " + e.getMessage());
+        deathImages = new BufferedImage[6];
+        for (int i = 0; i < 6; i++) {
+            try { deathImages[i] = ImageIO.read(getClass().getResourceAsStream("/main/kekeboss/ZKekeBoss" + (i + 37) + ".png")); }
+            catch(Exception e) { deathImages[i] = null; }
         }
     }
 
     public void triggerAttack() {
         if (!isDead && state == STATE_IDLE) {
-            // บังคับให้เปลี่ยนเป็นสถานะโจมตีเท่านั้น (ตัดการสุ่มท่าอื่นออก)
             state = STATE_ATTACK;
-            frameDelay = 8; // ความเร็วของอนิเมชันโจมตี (ปรับเลขได้ตามต้องการ)
-
+            frameDelay = 8;
             frameIndex       = 0;
             animationCounter = 0;
         }
+    }
+
+    public void stopAttack() {
+        state      = STATE_IDLE;
+        frameIndex = 0;
+        frameDelay = BASE_FRAME_DELAY;
     }
 
     public void update() {
@@ -118,13 +115,19 @@ public class KekeBoss extends PlayerValue {
                 if (idleImages != null && frameIndex >= idleImages.length) frameIndex = 0;
             } else if (state == STATE_WALK) {
                 frameIndex++;
-                if (walkImages != null && frameIndex >= walkImages.length) resetToIdle();
+                if (walkImages != null && frameIndex >= walkImages.length) {
+                    frameIndex = 0;
+                }
             } else if (state == STATE_SPECIAL) {
                 frameIndex++;
-                if (specialImages != null && frameIndex >= specialImages.length) resetToIdle();
+                if (specialImages != null && frameIndex >= specialImages.length) {
+                    frameIndex = 0;
+                }
             } else if (state == STATE_ATTACK) {
                 frameIndex++;
-                if (attackImages != null && frameIndex >= attackImages.length) resetToIdle();
+                if (attackImages != null && frameIndex >= attackImages.length) {
+                    frameIndex = 0;
+                }
             } else if (state == STATE_DEATH) {
                 frameIndex++;
                 if (deathImages != null && frameIndex >= deathImages.length) {
@@ -133,12 +136,6 @@ public class KekeBoss extends PlayerValue {
                 }
             }
         }
-    }
-
-    private void resetToIdle() {
-        state      = STATE_IDLE;
-        frameIndex = 0;
-        frameDelay = BASE_FRAME_DELAY;
     }
 
     public void draw(Graphics2D g2) {
@@ -167,7 +164,6 @@ public class KekeBoss extends PlayerValue {
             g2.drawImage(imageToDraw, drawX, drawY, scaledWidth, scaledHeight, null);
 
         } else {
-            // FIX: เพิ่ม Fallback ป้องกัน Crash และแจ้งเตือนหากไม่มีรูปใน State นั้นๆ
             g2.setColor(Color.RED);
             g2.setFont(new Font("Arial", Font.BOLD, 24));
             g2.drawString("[ KEKE BOSS IMAGE MISSING ]", this.x - 20, this.y + 100);
