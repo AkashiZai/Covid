@@ -8,7 +8,7 @@ import javax.imageio.ImageIO;
 import main.GamePanel;
 
 /**
- * Stage 2 Boss (SkullBoss
+ * Stage 2 Boss (SkullBoss)
  */
 public class SkullBoss extends PlayerValue {
 
@@ -189,10 +189,11 @@ public class SkullBoss extends PlayerValue {
 
             g2.drawImage(imageToDraw, drawX, drawY, scaledWidth, scaledHeight, null);
 
-        } else if (state == STATE_IDLE) {
-            g2.setColor(new Color(150, 0, 200));
-            g2.setFont(new Font("Arial", Font.BOLD, 28));
-            g2.drawString("[ SKULL BOSS ]", this.x + 20, this.y + 100);
+        } else {
+            // FIX: เพิ่ม Fallback ป้องกัน Crash และแจ้งเตือนหากไม่มีรูปใน State นั้นๆ
+            g2.setColor(Color.RED);
+            g2.setFont(new Font("Arial", Font.BOLD, 24));
+            g2.drawString("[ SKULL BOSS IMAGE MISSING ]", this.x - 20, this.y + 100);
         }
     }
 }

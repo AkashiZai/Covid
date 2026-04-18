@@ -8,8 +8,7 @@ import javax.imageio.ImageIO;
 import main.GamePanel;
 
 /**
- * Stage 2 Boss (KekeBoss) — บอสด่านที่ 2
- * ปรับปรุง: ปรับความเร็วอนิเมชันให้เป็นปกติเท่ากับ ScytheBoss (BASE_FRAME_DELAY = 10)
+ * Stage 3 Boss (KekeBoss) — บอสด่านที่ 3
  */
 public class KekeBoss extends PlayerValue {
 
@@ -167,10 +166,11 @@ public class KekeBoss extends PlayerValue {
 
             g2.drawImage(imageToDraw, drawX, drawY, scaledWidth, scaledHeight, null);
 
-        } else if (state == STATE_IDLE) {
-            g2.setColor(new Color(255, 60, 0));
-            g2.setFont(new Font("Arial", Font.BOLD, 28));
-            g2.drawString("[ KEKE BOSS ]", this.x + 20, this.y + 100);
+        } else {
+            // FIX: เพิ่ม Fallback ป้องกัน Crash และแจ้งเตือนหากไม่มีรูปใน State นั้นๆ
+            g2.setColor(Color.RED);
+            g2.setFont(new Font("Arial", Font.BOLD, 24));
+            g2.drawString("[ KEKE BOSS IMAGE MISSING ]", this.x - 20, this.y + 100);
         }
     }
 }

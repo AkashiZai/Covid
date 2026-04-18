@@ -165,10 +165,10 @@ public class ScytheBoss extends PlayerValue {
 
             g2.drawImage(imageToDraw, drawX, drawY, scaledWidth, scaledHeight, null);
 
-        } else if (state == STATE_IDLE) {
+        } else {
             g2.setColor(Color.RED);
-            g2.setFont(new Font("Arial", Font.BOLD, 30));
-            g2.drawString("[ SCYTHE BOSS ]", this.x + 20, this.y + 100);
+            g2.setFont(new Font("Arial", Font.BOLD, 24));
+            g2.drawString("[ SCYTHE BOSS IMAGE MISSING ]", this.x - 20, this.y + 100);
         }
     }
 }

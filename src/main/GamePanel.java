@@ -207,6 +207,13 @@ public class GamePanel extends JPanel implements Runnable {
                 update();
                 repaint();
                 delta--;
+            } else {
+                // FIX: ป้องกันอาการ CPU ทำงาน 100% (Busy waiting) โดยการยอมให้ Thread พัก
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
@@ -338,7 +345,6 @@ public class GamePanel extends JPanel implements Runnable {
             keyH.rightPressed = false;
         }
 
-        // Save Slot selection
         if (keyH.upPressed) {
             currentSaveSlot = (currentSaveSlot > 1) ? currentSaveSlot - 1 : 3;
             keyH.upPressed = false;
@@ -360,10 +366,9 @@ public class GamePanel extends JPanel implements Runnable {
             keyH.cPressed = false;
         }
 
-        // Updated Key Mappings here
         if (keyH.oPressed) { saveGame(); keyH.oPressed = false; }
         if (keyH.lPressed) { loadGame(); keyH.lPressed = false; }
-        if (keyH.xPressed) { deleteGame(); keyH.xPressed = false; } // Add Delete Trigger
+        if (keyH.xPressed) { deleteGame(); keyH.xPressed = false; }
 
         if (saveStatusTimer > 0) saveStatusTimer--;
     }
@@ -707,10 +712,7 @@ public class GamePanel extends JPanel implements Runnable {
         drawCentered(g2, kanitFont.deriveFont(Font.BOLD, 22f), Color.YELLOW,
                 "[C] อัปเกรดตัวละคร  |  แต้มที่มี: " + playerPoints + " pts", msgY + 70);
 
-        // ── 3 Slot Save System UI ────────────────────────────────────────
         int slotStartY = msgY + 100;
-
-        // Updated text instructions here
         drawCentered(g2, kanitFont.deriveFont(Font.PLAIN, 20f), Color.LIGHT_GRAY,
                 "W / S เลือกช่อง | [ O ] เซฟ | [ L ] โหลด | [ X ] ลบเซฟ", slotStartY);
 
@@ -744,7 +746,6 @@ public class GamePanel extends JPanel implements Runnable {
         }
 
         if (saveStatusTimer > 0) {
-            // Included "Deleted" status color check
             Color statusColor = saveStatusText.equals("Saved") || saveStatusText.equals("Loaded") || saveStatusText.equals("Deleted") ? new Color(80, 255, 120) : new Color(255, 100, 100);
             g2.setColor(statusColor);
             g2.setFont(kanitFont.deriveFont(Font.BOLD, 22f));
@@ -753,7 +754,6 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    // ── Save / Load System ────────────────────────────────────────────
     public void saveGame() {
         String filename = "savegame" + currentSaveSlot + ".dat";
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(filename))) {
@@ -776,27 +776,40 @@ public class GamePanel extends JPanel implements Runnable {
             saveStatusTimer = SAVE_STATUS_FRAMES;
             return;
         }
+
+        // FIX: นำค่าไปใส่ตัวแปรชั่วคราวก่อน เพื่อป้องกันไฟล์โหลดไม่ครบแล้วค่าพังกลางคัน
+        int tempPoints = playerPoints;
+        int tempAtkLv = playerAtkLv;
+        int tempHpLv = playerHpLv;
+        int tempHighestStage = highestUnlockedStage;
+
         try (BufferedReader br = new BufferedReader(new FileReader(f))) {
             String line;
             while ((line = br.readLine()) != null) {
                 String[] parts = line.split("=", 2);
                 if (parts.length < 2) continue;
                 switch (parts[0].trim()) {
-                    case "playerPoints"          -> playerPoints          = Integer.parseInt(parts[1].trim());
-                    case "playerAtkLv"           -> playerAtkLv           = Integer.parseInt(parts[1].trim());
-                    case "playerHpLv"            -> playerHpLv            = Integer.parseInt(parts[1].trim());
-                    case "highestUnlockedStage"  -> highestUnlockedStage  = Integer.parseInt(parts[1].trim());
+                    case "playerPoints"          -> tempPoints          = Integer.parseInt(parts[1].trim());
+                    case "playerAtkLv"           -> tempAtkLv           = Integer.parseInt(parts[1].trim());
+                    case "playerHpLv"            -> tempHpLv            = Integer.parseInt(parts[1].trim());
+                    case "highestUnlockedStage"  -> tempHighestStage    = Integer.parseInt(parts[1].trim());
                 }
             }
+
+            // โหลดครบไร้ Error ค่อยเขียนทับ
+            playerPoints = tempPoints;
+            playerAtkLv = tempAtkLv;
+            playerHpLv = tempHpLv;
+            highestUnlockedStage = tempHighestStage;
+
             saveStatusText  = "Loaded";
             saveStatusTimer = SAVE_STATUS_FRAMES;
-        } catch (IOException | NumberFormatException e) {
+        } catch (Exception e) {
             saveStatusText  = "Error";
             saveStatusTimer = SAVE_STATUS_FRAMES;
         }
     }
 
-    // NEW METHOD: Delete Game
     public void deleteGame() {
         File f = new File("savegame" + currentSaveSlot + ".dat");
         if (f.exists()) {

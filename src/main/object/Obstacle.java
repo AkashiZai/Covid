@@ -5,27 +5,10 @@ import java.awt.geom.Ellipse2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import main.GamePanel;
 
-/**
- * Obstacle — ระบบ attack pattern ของบอส (ความยากลดลง)
- *
- * 4 patterns:
- *   0  TRIPLE_LANES  — กระสุน 3 เลนยิงลงมา (ช้าลง, ยิงน้อยลง)
- *   1  SPIRAL_COVID  — กระสุน spiral (แขนน้อยลง, ช้าลง)
- *   2  LAVA_FLOOR    — พื้นลาวา (สูงน้อยลง, ค้างสั้นลง)
- *   3  QUAD_CORNERS  — กระสุน 4 มุม (ช้าลง, ยิงน้อยลง)
- *
- * สาธารณะ:
- *   startPattern(id)   เริ่ม pattern ที่ระบุ
- *   startNextPattern() สุ่ม pattern
- *   update()           เรียกทุก frame
- *   draw(g2)           วาด
- *   checkHit(x,y,size) เช็ค collision
- *   stop()             หยุดทุกอย่าง
- *   isActive()         กำลังทำงานอยู่หรือไม่
- */
 public class Obstacle {
 
     public static final int PATTERN_TRIPLE_LANES = 0;
@@ -43,7 +26,8 @@ public class Obstacle {
         this.difficultyMultiplier = multiplier;
     }
 
-    private final List<Bullet> bullets = new ArrayList<>();
+    // FIX: ใช้ CopyOnWriteArrayList เพื่อป้องกัน ConcurrentModificationException เวลาวาดตอนอัปเดตกระสุน
+    private final List<Bullet> bullets = new CopyOnWriteArrayList<>();
 
     // ── Lava ──
     private float lavaHeight  = 0;
@@ -89,6 +73,7 @@ public class Obstacle {
             case PATTERN_QUAD_CORNERS -> updateQuadCorners();
         }
 
+        // ลบกระสุนที่ตายแล้วทิ้ง
         bullets.removeIf(b -> !b.alive);
         for (Bullet b : bullets) b.move(gp);
     }
@@ -135,7 +120,6 @@ public class Obstacle {
                 int by = gp.boxY + 10;
                 float speed = 3f * difficultyMultiplier;
 
-                // Modified: Now shoots in a V-Shape Spread instead of just straight down
                 float vx = (i == 1) ? -1.5f : (i == 3) ? 1.5f : 0f;
 
                 bullets.add(new Bullet(bx, by, vx, speed, 14, Color.CYAN, BulletShape.CIRCLE));
@@ -244,7 +228,6 @@ public class Obstacle {
             for (int[] c : corners) {
                 double angleToCenter = Math.atan2(cy - c[1], cx - c[0]);
 
-                // Modified: Shoot a 3-way spread fan from each corner instead of just straight
                 for (int d = -1; d <= 1; d++) {
                     double spreadAngle = angleToCenter + (d * 0.3);
                     float  vx   = (float)(Math.cos(spreadAngle) * bulletSpeed);
